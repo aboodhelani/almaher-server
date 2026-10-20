@@ -1,7 +1,10 @@
 import { join } from 'path';
 import { QuranService } from '../quran/quran.service';
 import { QuestionGeneratorService } from './question-generator.service';
-import { QuestionValidationError, validateQuestion } from './question-validation';
+import {
+  QuestionValidationError,
+  validateQuestion,
+} from './question-validation';
 import { QUESTION_TYPES } from './question.types';
 import { splitWords } from './quran-text';
 
@@ -12,25 +15,28 @@ gen.buildIndex();
 
 /** Deterministic random numbers. */
 function seeded(seed: number) {
-  return () => ((seed = (seed * 1103515245 + 12345) % 2 ** 31) / 2 ** 31);
+  return () => (seed = (seed * 1103515245 + 12345) % 2 ** 31) / 2 ** 31;
 }
 const ayah = (s: number, a: number) =>
   quran.ayahs.find((x) => x.surah === s && x.numberInSurah === a)!;
 const words = (s: number, a: number) => splitWords(ayah(s, a).text).norm;
 
 describe('QuestionGeneratorService', () => {
-  it.each(QUESTION_TYPES)('generates %s questions with a 60 second limit', (type) => {
-    const qs = gen.generate(type, 5, seeded(7));
-    expect(qs).toHaveLength(5);
-    for (const q of qs) {
-      expect(q.type).toBe(type);
-      expect(q.prompt).not.toBe('');
-      expect(q.answer).not.toBe('');
-      expect(q.timeLimitSeconds).toBe(60);
-    }
-  });
+  it.each(QUESTION_TYPES)(
+    'generates %s questions with a 60 second limit',
+    (type) => {
+      const qs = gen.generate(type, 5, seeded(7));
+      expect(qs).toHaveLength(5);
+      for (const q of qs) {
+        expect(q.type).toBe(type);
+        expect(q.prompt).not.toBe('');
+        expect(q.answer).not.toBe('');
+        expect(q.timeLimitSeconds).toBe(60);
+      }
+    },
+  );
 
-  it('رقم الآيات: the prompt opens a page; the answer is that page\'s ayah count', () => {
+  it("رقم الآيات: the prompt opens a page; the answer is that page's ayah count", () => {
     for (const q of gen.generate('ayah_number', 10, seeded(1))) {
       const page = Number(q.meta.page);
       const onPage = quran.ayahs.filter((a) => a.page === page);
@@ -45,14 +51,18 @@ describe('QuestionGeneratorService', () => {
         if (q.meta.kind === 'contains_word') {
           const w = splitWords(String(q.meta.word)).norm[0];
           for (const r of q.refs) expect(words(r.surah, r.ayah)).toContain(w);
-          const all = quran.ayahs.filter((a) => splitWords(a.text).norm.includes(w));
+          const all = quran.ayahs.filter((a) =>
+            splitWords(a.text).norm.includes(w),
+          );
           expect(q.refs).toHaveLength(all.length);
         } else {
           const phrase = splitWords(String(q.meta.phrase)).norm;
           const starts = (s: number, a: number) =>
             words(s, a).slice(0, phrase.length).join(' ') === phrase.join(' ');
           for (const r of q.refs) expect(starts(r.surah, r.ayah)).toBe(true);
-          const all = quran.ayahs.filter((a) => starts(a.surah, a.numberInSurah));
+          const all = quran.ayahs.filter((a) =>
+            starts(a.surah, a.numberInSurah),
+          );
           expect(q.refs).toHaveLength(all.length);
         }
         if (type === 'auction') expect(q.meta.total).toBe(q.refs.length);
@@ -64,8 +74,11 @@ describe('QuestionGeneratorService', () => {
     for (const q of gen.generate('similar', 8, seeded(5))) {
       const answer = splitWords(q.answer).norm.join(' ');
       const n = Number(q.meta.words);
-      for (const r of q.refs) expect(words(r.surah, r.ayah).slice(0, n).join(' ')).toBe(answer);
-      expect(new Set(q.refs.map((r) => r.surah)).size).toBeGreaterThanOrEqual(2);
+      for (const r of q.refs)
+        expect(words(r.surah, r.ayah).slice(0, n).join(' ')).toBe(answer);
+      expect(new Set(q.refs.map((r) => r.surah)).size).toBeGreaterThanOrEqual(
+        2,
+      );
     }
   });
 
@@ -87,7 +100,9 @@ describe('QuestionGeneratorService', () => {
       const k = q.meta.words as number;
       expect(k).toBeLessThan(w.length);
       const starts = (len: number) =>
-        all.filter((x) => x.slice(0, len).join(' ') === w.slice(0, len).join(' ')).length;
+        all.filter(
+          (x) => x.slice(0, len).join(' ') === w.slice(0, len).join(' '),
+        ).length;
       expect(starts(k)).toBe(1); // unique with k words
       if (k > 1) expect(starts(k - 1)).toBeGreaterThan(1); // but not with fewer
       expect(splitWords(q.answer).norm[0]).toBe(w[w.length - 1]);
@@ -98,19 +113,29 @@ describe('QuestionGeneratorService', () => {
 
   it('يمين يسار: 12 unique openings from different pages; odd pages are on the right', () => {
     const [q] = gen.generate('right_left', 1, seeded(5));
-    const items = q.meta.items as { text: string; page: number; side: string; surah: number; ayah: number }[];
+    const items = q.meta.items as {
+      text: string;
+      page: number;
+      side: string;
+      surah: number;
+      ayah: number;
+    }[];
     expect(items).toHaveLength(12);
     expect(new Set(items.map((i) => i.page)).size).toBe(12);
     for (const i of items) {
       expect(i.side).toBe(i.page % 2 === 1 ? 'right' : 'left');
-      expect(gen.sardQuestion({ surah: i.surah, ayah: i.ayah })!.prompt).toBe(i.text);
+      expect(gen.sardQuestion({ surah: i.surah, ayah: i.ayah })!.prompt).toBe(
+        i.text,
+      );
     }
   });
 });
 
 describe('validateQuestion', () => {
   it('builds رقم الآيات from a page number', () => {
-    const q = validateQuestion({ type: 'ayah_number', page: 2 }, quran, (p) => gen.pageQuestion(p));
+    const q = validateQuestion({ type: 'ayah_number', page: 2 }, quran, (p) =>
+      gen.pageQuestion(p),
+    );
     expect(q.prompt).toBe(ayah(2, 1).text);
     expect(q.answer).toBe('5'); // البقرة 1–5 are on page 2
     expect(q.timeLimitSeconds).toBe(60);
@@ -122,7 +147,10 @@ describe('validateQuestion', () => {
       {
         type: 'auction',
         prompt: 'آيات تبدأ بـ فإذا',
-        refs: [{ surah: 16, ayah: 98 }, { surah: 23, ayah: 101 }],
+        refs: [
+          { surah: 16, ayah: 98 },
+          { surah: 23, ayah: 101 },
+        ],
         timeLimitSeconds: 45,
       },
       quran,
@@ -138,10 +166,17 @@ describe('validateQuestion', () => {
       undefined,
       (r) => gen.sardQuestion(r),
     );
-    expect(q.prompt).toBe(splitWords(ayah(2, 255).text).shown.slice(0, q.meta.words as number).join(' '));
+    expect(q.prompt).toBe(
+      splitWords(ayah(2, 255).text)
+        .shown.slice(0, q.meta.words as number)
+        .join(' '),
+    );
     expect(() =>
-      validateQuestion({ type: 'sard', refs: [{ surah: 55, ayah: 13 }] }, quran, undefined, (r) =>
-        gen.sardQuestion(r),
+      validateQuestion(
+        { type: 'sard', refs: [{ surah: 55, ayah: 13 }] },
+        quran,
+        undefined,
+        (r) => gen.sardQuestion(r),
       ),
     ).toThrow('sard_ayah_not_unique');
   });
@@ -151,10 +186,16 @@ describe('validateQuestion', () => {
       { type: 'nope' },
       { type: 'buzzer', prompt: 'سؤال' },
       { type: 'ayah_number', page: 999 },
-      { type: 'similar', prompt: 'p', answer: 'a', refs: [{ surah: 2, ayah: 1 }] },
+      {
+        type: 'similar',
+        prompt: 'p',
+        answer: 'a',
+        refs: [{ surah: 2, ayah: 1 }],
+      },
       { type: 'buzzer', prompt: 'p', answer: 'a', timeLimitSeconds: 2 },
     ];
-    for (const b of bad) expect(() => validateQuestion(b, quran)).toThrow(QuestionValidationError);
+    for (const b of bad)
+      expect(() => validateQuestion(b, quran)).toThrow(QuestionValidationError);
   });
 });
 

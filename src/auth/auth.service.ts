@@ -47,8 +47,12 @@ export class AuthService {
   ) {}
 
   async register(email: unknown, password: unknown, name: unknown) {
-    const e = String(email ?? '').trim().toLowerCase();
-    const n = String(name ?? '').trim().slice(0, 40);
+    const e = String(email ?? '')
+      .trim()
+      .toLowerCase();
+    const n = String(name ?? '')
+      .trim()
+      .slice(0, 40);
     const p = String(password ?? '');
     if (!EMAIL.test(e)) throw new AuthError('invalid_email');
     if (p.length < 6) throw new AuthError('weak_password');
@@ -63,8 +67,15 @@ export class AuthService {
   }
 
   async login(email: unknown, password: unknown) {
-    const user = await this.users.byEmail(String(email ?? '').trim().toLowerCase());
-    if (!user || !(await verifyPassword(String(password ?? ''), user.passwordHash))) {
+    const user = await this.users.byEmail(
+      String(email ?? '')
+        .trim()
+        .toLowerCase(),
+    );
+    if (
+      !user ||
+      !(await verifyPassword(String(password ?? ''), user.passwordHash))
+    ) {
       throw new AuthError('invalid_credentials');
     }
     return this.session(user);
@@ -92,11 +103,16 @@ export class AuthService {
     return user ? this.public(user) : null;
   }
 
-  async stats(userId: string): Promise<PlayerStats & { recent: RecentMatch[] }> {
+  async stats(
+    userId: string,
+  ): Promise<PlayerStats & { recent: RecentMatch[] }> {
     const results = await this.results.forUser(userId);
     const stats = emptyStats();
     for (const r of results) addResult(stats, r, userId);
-    return { ...stats, recent: results.slice(0, 10).map((r) => recent(r, userId)) };
+    return {
+      ...stats,
+      recent: results.slice(0, 10).map((r) => recent(r, userId)),
+    };
   }
 
   /** Accounts ranked by wins, then points, then fewest matches. */
@@ -115,7 +131,10 @@ export class AuthService {
     }
     return [...byUser.entries()]
       .map(([userId, s]) => ({ userId, ...s }))
-      .sort((a, b) => b.wins - a.wins || b.points - a.points || a.matches - b.matches)
+      .sort(
+        (a, b) =>
+          b.wins - a.wins || b.points - a.points || a.matches - b.matches,
+      )
       .slice(0, limit)
       .map((row, i) => ({ ...row, rank: i + 1 }));
   }
@@ -138,7 +157,13 @@ export interface RecentMatch {
   finishedAt: Date;
 }
 
-const emptyStats = (): PlayerStats => ({ matches: 0, wins: 0, draws: 0, losses: 0, points: 0 });
+const emptyStats = (): PlayerStats => ({
+  matches: 0,
+  wins: 0,
+  draws: 0,
+  losses: 0,
+  points: 0,
+});
 
 function seatOf(r: StoredResult, userId: string): 'player1' | 'player2' {
   return r.player1UserId === userId ? 'player1' : 'player2';
@@ -160,7 +185,12 @@ function recent(r: StoredResult, userId: string): RecentMatch {
     opponent: mine ? r.player2Name : r.player1Name,
     myScore: mine ? r.player1Score : r.player2Score,
     opponentScore: mine ? r.player2Score : r.player1Score,
-    result: r.winner === 'draw' ? 'draw' : r.winner === seatOf(r, userId) ? 'win' : 'loss',
+    result:
+      r.winner === 'draw'
+        ? 'draw'
+        : r.winner === seatOf(r, userId)
+          ? 'win'
+          : 'loss',
     finishedAt: r.finishedAt,
   };
 }

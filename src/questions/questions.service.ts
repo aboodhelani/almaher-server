@@ -56,7 +56,9 @@ export class QuestionsService {
    */
   /** [count] questions for a match: saved ones first (unless [generatedOnly]), topped up with generated ones. */
   async forMatch(type: QuestionType, count: number, generatedOnly = false) {
-    const saved = generatedOnly ? [] : shuffle(await this.store.list(type, 500)).slice(0, count);
+    const saved = generatedOnly
+      ? []
+      : shuffle(await this.store.list(type, 500)).slice(0, count);
     const fresh = this.generator.generate(type, count - saved.length);
     return [...saved, ...fresh].map((q) => this.withAyahs(q));
   }
@@ -74,7 +76,9 @@ export class QuestionsService {
     return {
       ...q,
       refs: q.refs.map((r) => {
-        const a = this.quran.ayahs.find((x) => x.surah === r.surah && x.numberInSurah === r.ayah);
+        const a = this.quran.ayahs.find(
+          (x) => x.surah === r.surah && x.numberInSurah === r.ayah,
+        );
         return {
           ...r,
           surahName: this.quran.surah(r.surah).nameArabic,

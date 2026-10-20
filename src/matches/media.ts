@@ -3,7 +3,8 @@ import { AccessToken } from 'livekit-server-sdk';
 /**
  * Live audio/video for remote matches, on a LiveKit server (local dev:
  * `docker compose up livekit`). Each match has one room; players and the
- * referee can speak and show their camera, the dashboard only watches.
+ * referee (from the app or the dashboard) can speak and show their camera;
+ * the dashboard's viewer token only watches.
  */
 export const mediaConfig = () => ({
   url: process.env.LIVEKIT_URL ?? 'ws://localhost:7880',
@@ -23,6 +24,12 @@ export async function mediaToken(
   const { url, apiKey, apiSecret } = mediaConfig();
   const room = roomFor(code);
   const at = new AccessToken(apiKey, apiSecret, { identity, name, ttl: '6h' });
-  at.addGrant({ room, roomJoin: true, canPublish, canSubscribe: true, canPublishData: false });
+  at.addGrant({
+    room,
+    roomJoin: true,
+    canPublish,
+    canSubscribe: true,
+    canPublishData: false,
+  });
   return { url, token: await at.toJwt(), room };
 }

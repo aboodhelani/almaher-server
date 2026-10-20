@@ -3,7 +3,10 @@ import { GameQuestion } from './types';
 import { validateRules } from '../../rules/rules.types';
 import type { QuestionType } from '../../questions/question.types';
 
-const q = (type: QuestionType, extra: Partial<GameQuestion> = {}): GameQuestion => ({
+const q = (
+  type: QuestionType,
+  extra: Partial<GameQuestion> = {},
+): GameQuestion => ({
   type,
   prompt: 'سؤال',
   answer: '13',
@@ -37,7 +40,7 @@ describe('MatchEngine — flow', () => {
     expect(new MatchEngine('1', 'same_room').perRound).toBe(4);
   });
 
-  it('uses each question\'s time limit (a minute by default)', () => {
+  it("uses each question's time limit (a minute by default)", () => {
     const m = ready([q('ayah_number')]);
     expect((m.snapshotFor('player1', 0) as any).round.secondsLeft).toBe(60);
     expect(() => m.answer('player1', 13, 61_000)).toThrow('time_up');
@@ -63,7 +66,7 @@ describe('MatchEngine — flow', () => {
   });
 });
 
-describe('رقم الآيات — guess the page\'s ayah count', () => {
+describe("رقم الآيات — guess the page's ayah count", () => {
   it('correct scores; nobody correct → closest; equally close → both, same wrong number → none, both exact → the faster', () => {
     let m = ready([q('ayah_number', { answer: '13' })]);
     m.answer('player1', 13, 0);
@@ -116,7 +119,9 @@ describe('ماذا تعرف — turns and strikes', () => {
     expect(m.q!.turn).toBe('player1');
     m.judge('correct', '2:1', 0);
     expect(m.q!.turn).toBe('player2');
-    expect((m.snapshotFor('referee', 0) as any).round.question.refs[0].said).toBe(true);
+    expect(
+      (m.snapshotFor('referee', 0) as any).round.question.refs[0].said,
+    ).toBe(true);
   });
 
   it('the third strike gives the other player the point', () => {
@@ -157,7 +162,9 @@ describe('ماذا تعرف — turns and strikes', () => {
     expect(m.q!.strikes.player1).toBe(0);
     m.judge('correct', undefined, 0); // player2 ✓ → player1
     expect(() => m.pass('player1', 0)).toThrow('already_passed');
-    expect((m.snapshotFor('player1', 0).round as any).passed).toEqual(['player1']);
+    expect((m.snapshotFor('player1', 0).round as any).passed).toEqual([
+      'player1',
+    ]);
     m.judge('correct', undefined, 0); // player1 ✓ → player2
     m.pass('player2', 0); // player2's own one pass
     expect(m.q!.turn).toBe('player1');
@@ -198,7 +205,9 @@ describe('المزاد — open bids, then the highest bidder recites', () => {
   it('bids are open, must beat the last one, and restart the clock', () => {
     const m = ready([auction()]);
     m.answer('player1', 3, 10_000);
-    expect((m.snapshotFor('player2', 10_000) as any).round.answers.player1.value).toBe(3);
+    expect(
+      (m.snapshotFor('player2', 10_000) as any).round.answers.player1.value,
+    ).toBe(3);
     expect(m.wakeAt(10_000)).toBe(70_000);
     expect(() => m.answer('player2', 3, 11_000)).toThrow('invalid_answer');
     expect(() => m.answer('player1', 5, 11_000)).toThrow('already_highest');
@@ -240,7 +249,9 @@ describe('المزاد — open bids, then the highest bidder recites', () => {
     expect(() => m.answer('player2', 34, 0)).toThrow();
     m.judge('correct', undefined, 1_000);
     expect(m.scores).toEqual({ player1: 3, player2: 0 });
-    expect([5, 19, 20, 29, 30, 41].map(auctionPoints)).toEqual([1, 1, 2, 2, 3, 4]);
+    expect([5, 19, 20, 29, 30, 41].map(auctionPoints)).toEqual([
+      1, 1, 2, 2, 3, 4,
+    ]);
   });
 
   it('the reciter has 45 seconds; running out gives the opponent the point', () => {
@@ -287,7 +298,9 @@ describe('المتشابهات — answer aloud, 3 strikes each', () => {
     expect(() => m.judge('wrong', undefined, 0)).toThrow('invalid_player');
     for (let i = 0; i < 3; i++) m.judge('wrong', undefined, 0, 'player1');
     expect(m.q!.lockedOut).toEqual(['player1']);
-    expect(() => m.judge('correct', undefined, 0, 'player1')).toThrow('locked_out');
+    expect(() => m.judge('correct', undefined, 0, 'player1')).toThrow(
+      'locked_out',
+    );
     m.judge('wrong', undefined, 0, 'player2');
     expect(m.q!.phase).toBe('answering');
     m.judge('wrong', undefined, 0, 'player2');
@@ -298,16 +311,24 @@ describe('المتشابهات — answer aloud, 3 strikes each', () => {
 
   it('players see the question but not the answer until it is decided', () => {
     const m = ready([q('similar', { answer: 'البقرة' })]);
-    expect((m.snapshotFor('player1', 0) as any).round.question.prompt).toBe('سؤال');
-    expect((m.snapshotFor('player1', 0) as any).round.question.answer).toBeUndefined();
+    expect((m.snapshotFor('player1', 0) as any).round.question.prompt).toBe(
+      'سؤال',
+    );
+    expect(
+      (m.snapshotFor('player1', 0) as any).round.question.answer,
+    ).toBeUndefined();
     m.award(null, 0);
-    expect((m.snapshotFor('player1', 0) as any).round.question.answer).toBe('البقرة');
+    expect((m.snapshotFor('player1', 0) as any).round.question.answer).toBe(
+      'البقرة',
+    );
   });
 });
 
-describe('السرد — say the ayah\'s last word', () => {
+describe("السرد — say the ayah's last word", () => {
   it('either player answers; 2 tries each; 30 seconds then no point', () => {
-    const m = ready([q('sard', { prompt: 'الٓمٓ', answer: 'لِّلۡمُتَّقِينَ' })]);
+    const m = ready([
+      q('sard', { prompt: 'الٓمٓ', answer: 'لِّلۡمُتَّقِينَ' }),
+    ]);
     expect(m.snapshotFor('player1', 0).round!.timeLimitSeconds).toBe(30);
     expect((m.snapshotFor('player1', 0).round as any).maxStrikes).toBe(2);
     m.judge('wrong', undefined, 0, 'player1');
@@ -329,7 +350,14 @@ describe('يمين يسار — right or left page, a run each', () => {
   const rl = () =>
     q('right_left', {
       meta: {
-        items: sides.map((side, i) => ({ text: `بداية ${i}`, page: i, side, surah: 1, ayah: 1, surahName: '' })),
+        items: sides.map((side, i) => ({
+          text: `بداية ${i}`,
+          page: i,
+          side,
+          surah: 1,
+          ayah: 1,
+          surahName: '',
+        })),
       },
     });
 
@@ -343,7 +371,9 @@ describe('يمين يسار — right or left page, a run each', () => {
     m.answerSide('player1', 'right', 1_000); // ✓
     m.answerSide('player1', 'right', 2_000); // ✗
     // Player1 doesn't learn their results until the run ends.
-    expect((m.snapshotFor('player1', 2_000).round as any).rightLeft.results.player1).toBeNull();
+    expect(
+      (m.snapshotFor('player1', 2_000).round as any).rightLeft.results.player1,
+    ).toBeNull();
     expect(m.expire(5_000)).toBe(true); // too slow: not counted
     const after = (m.snapshotFor('player1', 5_000).round as any).rightLeft;
     expect(after.results.player1).toMatchObject({ right: 1, finished: true });
@@ -351,7 +381,9 @@ describe('يمين يسار — right or left page, a run each', () => {
     expect(m.wakeAt(5_000)).toBeNull(); // waits for the referee
 
     m.startRun(10_000);
-    expect(m.snapshotFor('player2', 10_000).round!.question.prompt).toBe('بداية 3');
+    expect(m.snapshotFor('player2', 10_000).round!.question.prompt).toBe(
+      'بداية 3',
+    );
     m.answerSide('player2', 'left', 10_000); // ✓
     m.answerSide('player2', 'left', 10_500); // ✓
     m.answerSide('player2', 'left', 11_000); // ✗
@@ -362,9 +394,11 @@ describe('يمين يسار — right or left page, a run each', () => {
   it('a tie gives nobody the point', () => {
     const m = ready([rl()]);
     m.startRun(0);
-    for (const s of ['right', 'left', 'right'] as const) m.answerSide('player1', s, 0);
+    for (const s of ['right', 'left', 'right'] as const)
+      m.answerSide('player1', s, 0);
     m.startRun(0);
-    for (const s of ['left', 'left', 'right'] as const) m.answerSide('player2', s, 0);
+    for (const s of ['left', 'left', 'right'] as const)
+      m.answerSide('player2', s, 0);
     expect(m.q!.phase).toBe('revealed');
     expect(m.scores).toEqual({ player1: 0, player2: 0 });
   });
@@ -383,8 +417,14 @@ describe('الجرس — the buzzer', () => {
     const m = ready([q('buzzer', { prompt: 'سؤال' })]);
     m.buzz('player1', 0);
     m.judge('wrong', undefined, 0);
-    expect((m.snapshotFor('player2', 0).round!.question as { prompt: string }).prompt).toBe('سؤال');
-    expect((m.snapshotFor('spectator', 0).round!.question as { prompt: string }).prompt).toBe('سؤال');
+    expect(
+      (m.snapshotFor('player2', 0).round!.question as { prompt: string })
+        .prompt,
+    ).toBe('سؤال');
+    expect(
+      (m.snapshotFor('spectator', 0).round!.question as { prompt: string })
+        .prompt,
+    ).toBe('سؤال');
     expect(m.snapshotFor('referee', 0).round!.activeBuzzer).toBe('player2');
     expect(() => m.buzz('player1', 0)).toThrow('locked_out');
     m.judge('wrong', undefined, 0);
@@ -408,7 +448,12 @@ describe('no draws — a tie-breaker from the last round', () => {
     m.next(0, q('buzzer', { prompt: 'حسم ١' }));
     expect(m.status).toBe('playing');
     const r = m.snapshotFor('player1', 0).round as any;
-    expect([r.tiebreak, r.index, r.total, r.roundIndex]).toEqual([true, 0, 1, 0]);
+    expect([r.tiebreak, r.index, r.total, r.roundIndex]).toEqual([
+      true,
+      0,
+      1,
+      0,
+    ]);
     m.award(null, 0); // still level
     m.next(0, q('buzzer', { prompt: 'حسم ٢' }));
     expect(m.status).toBe('playing');
@@ -432,7 +477,13 @@ describe('rules from the dashboard', () => {
     rounds: {
       what_do_you_know: { strikes: 2 },
       buzzer: { points: 2, seconds: 20 },
-      similar: { strikes: 1, fastSeconds: 10, fastPoints: 5, slowSeconds: 30, slowPoints: 1 },
+      similar: {
+        strikes: 1,
+        fastSeconds: 10,
+        fastPoints: 5,
+        slowSeconds: 30,
+        slowPoints: 1,
+      },
       auction: { bidSeconds: 30, reciteSeconds: 20 },
     },
   });
@@ -445,7 +496,7 @@ describe('rules from the dashboard', () => {
     return m;
   };
 
-  it('uses the match\'s strikes, points and timers', () => {
+  it("uses the match's strikes, points and timers", () => {
     const wdyk = start([q('what_do_you_know')]);
     wdyk.judge('wrong', undefined, 0);
     wdyk.judge('correct', undefined, 0);
@@ -473,18 +524,27 @@ describe('rules from the dashboard', () => {
   });
 
   it('rejects rules out of range or with every round off', () => {
-    expect(() => validateRules({ rounds: { buzzer: { points: 0 } } })).toThrow('invalid_points');
+    expect(() => validateRules({ rounds: { buzzer: { points: 0 } } })).toThrow(
+      'invalid_points',
+    );
     expect(() =>
       validateRules({
         rounds: Object.fromEntries(
-          ['what_do_you_know', 'ayah_number', 'auction', 'similar', 'sard', 'right_left', 'buzzer'].map((t) => [
-            t,
-            { enabled: false },
-          ]),
+          [
+            'what_do_you_know',
+            'ayah_number',
+            'auction',
+            'similar',
+            'sard',
+            'right_left',
+            'buzzer',
+          ].map((t) => [t, { enabled: false }]),
         ),
       }),
     ).toThrow('no_rounds');
-    expect(() => validateRules({ rounds: { similar: { fastSeconds: 50 } } })).toThrow('similar_tiers');
+    expect(() =>
+      validateRules({ rounds: { similar: { fastSeconds: 50 } } }),
+    ).toThrow('similar_tiers');
   });
 });
 
@@ -499,7 +559,9 @@ describe('the referee picks the rounds and their counts', () => {
     const m = lobby();
     m.setRoundCounts({ what_do_you_know: 20 });
     expect(m.plan).toEqual([{ type: 'what_do_you_know', count: 20 }]);
-    expect((m.snapshotFor('referee', 0) as any).rounds).toEqual(['what_do_you_know']);
+    expect((m.snapshotFor('referee', 0) as any).rounds).toEqual([
+      'what_do_you_know',
+    ]);
   });
 
   it('needs at least one question, within the limits', () => {
@@ -508,9 +570,9 @@ describe('the referee picks the rounds and their counts', () => {
     expect(() => m.setRoundCounts({ buzzer: 0 })).toThrow('no_rounds');
     expect(() => m.setRoundCounts({ buzzer: 31 })).toThrow('invalid_count');
     expect(() => m.setRoundCounts({ buzzer: 1.5 })).toThrow('invalid_count');
-    expect(() => m.setRoundCounts({ buzzer: 30, sard: 30, similar: 1 })).toThrow(
-      'too_many_questions',
-    );
+    expect(() =>
+      m.setRoundCounts({ buzzer: 30, sard: 30, similar: 1 }),
+    ).toThrow('too_many_questions');
   });
 
   it('the limits come from the rules', () => {
@@ -518,16 +580,20 @@ describe('the referee picks the rounds and their counts', () => {
     const m = new MatchEngine('1', 'same_room', undefined, rules);
     expect(() => m.setRoundCounts({ buzzer: 26 })).toThrow('invalid_count');
     m.setRoundCounts({ buzzer: 25, sard: 15 });
-    expect(() => m.setRoundCounts({ buzzer: 25, sard: 16 })).toThrow('too_many_questions');
+    expect(() => m.setRoundCounts({ buzzer: 25, sard: 16 })).toThrow(
+      'too_many_questions',
+    );
     expect((m.snapshotFor('referee', 0) as any).maxPerRound).toBe(25);
   });
 
   it('the default match must fit the limits', () => {
-    expect(() => validateRules({ questionsPerRound: 5, maxPerRound: 4 })).toThrow(
-      'per_round_over_limit',
-    );
+    expect(() =>
+      validateRules({ questionsPerRound: 5, maxPerRound: 4 }),
+    ).toThrow('per_round_over_limit');
     // 7 rounds × 4 = 28
-    expect(() => validateRules({ maxQuestions: 27 })).toThrow('match_over_limit');
+    expect(() => validateRules({ maxQuestions: 27 })).toThrow(
+      'match_over_limit',
+    );
     expect(validateRules({ maxQuestions: 28 }).maxQuestions).toBe(28);
   });
 
@@ -545,9 +611,9 @@ describe('the referee picks the rounds and their counts', () => {
     expect(m.setup.sard).toHaveLength(2);
     expect(m.setup.buzzer).toBeUndefined();
     expect(() => m.setQuestions('buzzer', [q('buzzer')])).toThrow('round_off');
-    expect(() => m.setQuestions('sard', [q('sard'), q('sard'), q('sard')])).toThrow(
-      'too_many_questions',
-    );
+    expect(() =>
+      m.setQuestions('sard', [q('sard'), q('sard'), q('sard')]),
+    ).toThrow('too_many_questions');
   });
 
   it('rounds of different sizes show their own position', () => {
@@ -555,7 +621,9 @@ describe('the referee picks the rounds and their counts', () => {
     m.next(0);
     m.next(0);
     let r = (m.snapshotFor('referee', 0) as any).round;
-    expect([r.roundIndex, r.roundTotal, r.indexInRound, r.roundSize]).toEqual([0, 2, 2, 3]);
+    expect([r.roundIndex, r.roundTotal, r.indexInRound, r.roundSize]).toEqual([
+      0, 2, 2, 3,
+    ]);
     m.next(0);
     r = (m.snapshotFor('referee', 0) as any).round;
     expect([r.roundIndex, r.indexInRound, r.roundSize]).toEqual([1, 0, 1]);
@@ -628,13 +696,22 @@ describe('referee tools', () => {
 
   it('الجرس hides the question from players until it is decided', () => {
     const m = ready([q('buzzer', { prompt: 'سؤال' })]);
-    const player = m.snapshotFor('player1', 0).round!.question as Record<string, unknown>;
+    const player = m.snapshotFor('player1', 0).round!.question as Record<
+      string,
+      unknown
+    >;
     expect(player.prompt).toBeNull();
     expect(player.promptHidden).toBe(true);
-    expect((m.snapshotFor('referee', 0).round!.question as { prompt: string }).prompt).toBe('سؤال');
+    expect(
+      (m.snapshotFor('referee', 0).round!.question as { prompt: string })
+        .prompt,
+    ).toBe('سؤال');
     m.buzz('player1', 0);
     m.judge('correct', undefined, 0);
-    expect((m.snapshotFor('player2', 0).round!.question as { prompt: string }).prompt).toBe('سؤال');
+    expect(
+      (m.snapshotFor('player2', 0).round!.question as { prompt: string })
+        .prompt,
+    ).toBe('سؤال');
   });
 });
 
@@ -644,7 +721,10 @@ describe('big screen (spectator)', () => {
     m.answer('player1', 7, 0);
     let view = m.snapshotFor('spectator', 0).round as any;
     expect(view.question.answer).toBeUndefined();
-    expect(view.answers.player1).toMatchObject({ submitted: true, value: null });
+    expect(view.answers.player1).toMatchObject({
+      submitted: true,
+      value: null,
+    });
     m.reveal(0);
     view = m.snapshotFor('spectator', 0).round as any;
     expect(view.answers.player1.value).toBe(7);

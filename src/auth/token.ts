@@ -22,13 +22,18 @@ export function verifyToken(token: unknown, now = Date.now()): string | null {
   if (!payload || !sig) return null;
   const expected = createHmac('sha256', secret()).update(payload).digest();
   const actual = Buffer.from(sig, 'base64url');
-  if (actual.length !== expected.length || !timingSafeEqual(actual, expected)) return null;
+  if (actual.length !== expected.length || !timingSafeEqual(actual, expected))
+    return null;
   try {
-    const { sub, exp } = JSON.parse(Buffer.from(payload, 'base64url').toString()) as {
+    const { sub, exp } = JSON.parse(
+      Buffer.from(payload, 'base64url').toString(),
+    ) as {
       sub?: string;
       exp?: number;
     };
-    return typeof sub === 'string' && typeof exp === 'number' && exp > now ? sub : null;
+    return typeof sub === 'string' && typeof exp === 'number' && exp > now
+      ? sub
+      : null;
   } catch {
     return null;
   }

@@ -18,7 +18,9 @@ export class AuthController {
 
   @Post('auth/register')
   register(@Body() body: { email?: string; password?: string; name?: string }) {
-    return this.run(() => this.auth.register(body?.email, body?.password, body?.name));
+    return this.run(() =>
+      this.auth.register(body?.email, body?.password, body?.name),
+    );
   }
 
   @Post('auth/login')
@@ -43,7 +45,10 @@ export class AuthController {
     @Body() body?: { password?: string },
   ) {
     try {
-      await this.auth.deleteAccount(header?.replace(/^Bearer\s+/i, ''), body?.password);
+      await this.auth.deleteAccount(
+        header?.replace(/^Bearer\s+/i, ''),
+        body?.password,
+      );
     } catch (e) {
       if (e instanceof AuthError && e.code === 'unauthorized') {
         throw new UnauthorizedException('unauthorized');

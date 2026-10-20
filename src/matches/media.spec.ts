@@ -9,7 +9,11 @@ describe('media tokens', () => {
     const p = await verifier.verify(player.token);
     const v = await verifier.verify(viewer.token);
     expect(player.room).toBe(roomFor('2030'));
-    expect(p.video).toMatchObject({ room: 'almaher-2030', roomJoin: true, canPublish: true });
+    expect(p.video).toMatchObject({
+      room: 'almaher-2030',
+      roomJoin: true,
+      canPublish: true,
+    });
     expect(v.video).toMatchObject({ canPublish: false, canSubscribe: true });
     expect(p.sub).toBe('player1');
   });

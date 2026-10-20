@@ -4,7 +4,10 @@ import { UserEntity } from './user.entity';
 
 export const USERS_STORE = Symbol('USERS_STORE');
 
-export type NewUser = Pick<UserEntity, 'email' | 'displayName' | 'passwordHash'>;
+export type NewUser = Pick<
+  UserEntity,
+  'email' | 'displayName' | 'passwordHash'
+>;
 
 export interface UsersStore {
   create(user: NewUser): Promise<UserEntity>;

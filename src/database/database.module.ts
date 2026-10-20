@@ -6,10 +6,18 @@ import { InitialSchema1760600000000 } from './migrations/1760600000000-initial-s
 import { Settings1760700000000 } from './migrations/1760700000000-settings';
 import { LongerMatchCode1760800000000 } from './migrations/1760800000000-longer-match-code';
 import { SettingEntity } from './setting.entity';
-import { MemorySettingsStore, PostgresSettingsStore, SETTINGS_STORE } from './settings-store';
+import {
+  MemorySettingsStore,
+  PostgresSettingsStore,
+  SETTINGS_STORE,
+} from './settings-store';
 import { QuestionEntity } from './question.entity';
 import { UserEntity } from './user.entity';
-import { MemoryUsersStore, PostgresUsersStore, USERS_STORE } from './users-store';
+import {
+  MemoryUsersStore,
+  PostgresUsersStore,
+  USERS_STORE,
+} from './users-store';
 import {
   MemoryQuestionsStore,
   PostgresQuestionsStore,
@@ -29,7 +37,12 @@ import {
 @Module({})
 export class DatabaseModule {
   static forRoot(databaseUrl = process.env.DATABASE_URL): DynamicModule {
-    const exports = [RESULTS_STORE, QUESTIONS_STORE, USERS_STORE, SETTINGS_STORE];
+    const exports = [
+      RESULTS_STORE,
+      QUESTIONS_STORE,
+      USERS_STORE,
+      SETTINGS_STORE,
+    ];
     if (!databaseUrl) {
       new Logger('Database').warn(
         'DATABASE_URL not set: results and questions are kept in memory only',
@@ -45,7 +58,12 @@ export class DatabaseModule {
         exports,
       };
     }
-    const entities = [MatchResultEntity, QuestionEntity, UserEntity, SettingEntity];
+    const entities = [
+      MatchResultEntity,
+      QuestionEntity,
+      UserEntity,
+      SettingEntity,
+    ];
     return {
       module: DatabaseModule,
       imports: [
@@ -56,7 +74,11 @@ export class DatabaseModule {
           // The schema comes from migrations (src/database/migrations), run
           // at start-up; never synchronized from the entities.
           synchronize: false,
-          migrations: [InitialSchema1760600000000, Settings1760700000000, LongerMatchCode1760800000000],
+          migrations: [
+            InitialSchema1760600000000,
+            Settings1760700000000,
+            LongerMatchCode1760800000000,
+          ],
           migrationsRun: true,
         }),
         TypeOrmModule.forFeature(entities),
@@ -77,12 +99,14 @@ export class DatabaseModule {
         {
           provide: USERS_STORE,
           inject: [getRepositoryToken(UserEntity)],
-          useFactory: (repo: Repository<UserEntity>) => new PostgresUsersStore(repo),
+          useFactory: (repo: Repository<UserEntity>) =>
+            new PostgresUsersStore(repo),
         },
         {
           provide: SETTINGS_STORE,
           inject: [getRepositoryToken(SettingEntity)],
-          useFactory: (repo: Repository<SettingEntity>) => new PostgresSettingsStore(repo),
+          useFactory: (repo: Repository<SettingEntity>) =>
+            new PostgresSettingsStore(repo),
         },
       ],
       exports,

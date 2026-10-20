@@ -41,7 +41,10 @@ export class QuestionGeneratorService implements OnModuleInit {
 
   /** Builds the lookup tables (call again after reloading the Quran). */
   buildIndex() {
-    this.ayahs = this.quran.ayahs.map((ayah) => ({ ayah, ...splitWords(ayah.text) }));
+    this.ayahs = this.quran.ayahs.map((ayah) => ({
+      ayah,
+      ...splitWords(ayah.text),
+    }));
     this.openings = new Map();
     this.byWord = new Map();
     this.byPage = new Map();
@@ -55,7 +58,11 @@ export class QuestionGeneratorService implements OnModuleInit {
     });
   }
 
-  generate(type: QuestionType, count: number, random: Random = Math.random): QuestionData[] {
+  generate(
+    type: QuestionType,
+    count: number,
+    random: Random = Math.random,
+  ): QuestionData[] {
     const make = {
       what_do_you_know: () => this.whatDoYouKnow(random),
       ayah_number: () => this.ayahNumber(random),
@@ -70,7 +77,9 @@ export class QuestionGeneratorService implements OnModuleInit {
     for (let tries = 0; out.length < count && tries < count * 50; tries++) {
       const q = make();
       // يمين يسار shares one prompt; its ayahs tell questions apart.
-      const key = q && `${q.prompt}|${q.refs.map((r) => `${r.surah}:${r.ayah}`).join(',')}`;
+      const key =
+        q &&
+        `${q.prompt}|${q.refs.map((r) => `${r.surah}:${r.ayah}`).join(',')}`;
       if (q && key && !seen.has(key)) {
         seen.add(key);
         out.push(q);
@@ -93,11 +102,17 @@ export class QuestionGeneratorService implements OnModuleInit {
     const onPage = this.byPage.get(page);
     if (!onPage) return null;
     const first = this.ayahs[onPage[0]].ayah;
-    return this.question('ayah_number', first.text, String(onPage.length), [ref(first)], {
-      page,
-      ayahCount: onPage.length,
-      surahName: this.quran.surah(first.surah).nameArabic,
-    });
+    return this.question(
+      'ayah_number',
+      first.text,
+      String(onPage.length),
+      [ref(first)],
+      {
+        page,
+        ayahCount: onPage.length,
+        surahName: this.quran.surah(first.surah).nameArabic,
+      },
+    );
   }
 
   /** ماذا تعرف: name the ayahs that start with a phrase, or contain a word. */
@@ -150,9 +165,15 @@ export class QuestionGeneratorService implements OnModuleInit {
     const words = random() < 0.5 ? 3 : 4;
     const a = pick(this.ayahs, random);
     if (a.norm.length <= words) return null;
-    const group = this.openings.get(words)!.get(a.norm.slice(0, words).join(' ')) ?? [];
+    const group =
+      this.openings.get(words)!.get(a.norm.slice(0, words).join(' ')) ?? [];
     const surahs = [...new Set(group.map((g) => this.ayahs[g].ayah.surah))];
-    if (group.length < 2 || group.length > 6 || surahs.length < 2 || surahs.length > 5) {
+    if (
+      group.length < 2 ||
+      group.length > 6 ||
+      surahs.length < 2 ||
+      surahs.length > 5
+    ) {
       return null;
     }
     const names = surahs.map((s) => this.quran.surah(s).nameArabic).join('، ');
@@ -182,7 +203,9 @@ export class QuestionGeneratorService implements OnModuleInit {
     const tail = last.norm.slice(-3).join(' ');
     // The ending must belong to this surah only.
     const clash = this.quran.surahs.some(
-      (s) => s.number !== surah.number && this.lastAyahOf(s.number).norm.slice(-3).join(' ') === tail,
+      (s) =>
+        s.number !== surah.number &&
+        this.lastAyahOf(s.number).norm.slice(-3).join(' ') === tail,
     );
     if (clash || last.norm.length < 3) return null;
     return this.question(
@@ -219,8 +242,11 @@ export class QuestionGeneratorService implements OnModuleInit {
     if (a.norm.length < 4 || a.norm.length > 10) return null;
     const text = a.norm.join(' ');
     // Skip ayahs that repeat elsewhere: the answer must be one surah.
-    const twins = (this.openings.get(Math.min(4, a.norm.length))!.get(a.norm.slice(0, 4).join(' ')) ?? [])
-      .filter((i) => this.ayahs[i].norm.join(' ') === text);
+    const twins = (
+      this.openings
+        .get(Math.min(4, a.norm.length))!
+        .get(a.norm.slice(0, 4).join(' ')) ?? []
+    ).filter((i) => this.ayahs[i].norm.join(' ') === text);
     if (twins.length > 1) return null;
     return this.question(
       'buzzer',
@@ -261,13 +287,19 @@ export class QuestionGeneratorService implements OnModuleInit {
   rightLeft(random: Random): QuestionData | null {
     const refs: AyahRef[] = [];
     const pages = new Set<number>();
-    for (let tries = 0; refs.length < RIGHT_LEFT_PER_PLAYER * 2 && tries < 400; tries++) {
+    for (
+      let tries = 0;
+      refs.length < RIGHT_LEFT_PER_PLAYER * 2 && tries < 400;
+      tries++
+    ) {
       const a = pick(this.ayahs, random).ayah;
       if (pages.has(a.page) || !this.sardQuestion(ref(a))) continue;
       pages.add(a.page);
       refs.push(ref(a));
     }
-    return refs.length === RIGHT_LEFT_PER_PLAYER * 2 ? this.rightLeftQuestion(refs) : null;
+    return refs.length === RIGHT_LEFT_PER_PLAYER * 2
+      ? this.rightLeftQuestion(refs)
+      : null;
   }
 
   /**
@@ -281,7 +313,9 @@ export class QuestionGeneratorService implements OnModuleInit {
     for (const r of refs) {
       const q = this.sardQuestion(r);
       if (!q) return null;
-      const a = this.quran.ayahs.find((x) => x.surah === r.surah && x.numberInSurah === r.ayah)!;
+      const a = this.quran.ayahs.find(
+        (x) => x.surah === r.surah && x.numberInSurah === r.ayah,
+      )!;
       items.push({
         text: q.prompt,
         page: a.page,
@@ -320,7 +354,9 @@ export class QuestionGeneratorService implements OnModuleInit {
     if (!a) return null;
     let sharing = this.ayahs.map((_, i) => i).filter((i) => i !== index);
     for (let k = 1; k < a.norm.length; k++) {
-      sharing = sharing.filter((i) => this.ayahs[i].norm[k - 1] === a.norm[k - 1]);
+      sharing = sharing.filter(
+        (i) => this.ayahs[i].norm[k - 1] === a.norm[k - 1],
+      );
       if (sharing.length === 0) {
         return this.question(
           'sard',

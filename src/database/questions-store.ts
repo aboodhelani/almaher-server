@@ -1,6 +1,10 @@
 import { randomUUID } from 'crypto';
 import { Repository } from 'typeorm';
-import type { QuestionData, QuestionType, StoredQuestion } from '../questions/question.types';
+import type {
+  QuestionData,
+  QuestionType,
+  StoredQuestion,
+} from '../questions/question.types';
 import { QuestionEntity } from './question.entity';
 
 export const QUESTIONS_STORE = Symbol('QUESTIONS_STORE');
