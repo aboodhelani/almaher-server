@@ -36,8 +36,7 @@ export class MatchesService {
     let code: string;
     if (customCode !== undefined && String(customCode).trim() !== '') {
       code = normalizeCode(customCode);
-      if (!/^[\p{L}\p{N}_-]{3,20}$/u.test(code))
-        throw new MatchError('invalid_code');
+      if (!/^[\p{L}\p{N}_-]{3,20}$/u.test(code)) throw new MatchError('invalid_code');
       if (this.isLive(code)) throw new MatchError('code_taken');
     } else {
       do {
@@ -59,9 +58,7 @@ export class MatchesService {
     const open = [...this.matches.values()].find((m) => {
       if (m.status !== 'lobby' || m.mode !== mode || !m.published) return false;
       if (role === 'referee') return !m.participants.referee?.connected;
-      return (
-        !m.participants.player1?.connected || !m.participants.player2?.connected
-      );
+      return !m.participants.player1?.connected || !m.participants.player2?.connected;
     });
     if (open) return open;
     // A referee's new match starts as a draft they prepare and publish.
@@ -103,10 +100,7 @@ export class MatchesService {
       const chosen = (match.setup[type] ?? []).slice(0, count);
       questions.push(...chosen);
       if (chosen.length >= count) continue;
-      for (const q of await this.questions.forMatch(
-        type,
-        count - chosen.length,
-      )) {
+      for (const q of await this.questions.forMatch(type, count - chosen.length)) {
         questions.push(toGameQuestion(q));
       }
     }
@@ -128,21 +122,13 @@ export class MatchesService {
   }
 
   /** The referee's questions for one round, each checked like a bank question. */
-  setQuestions(
-    match: MatchEngine,
-    type: GameQuestion['type'],
-    bodies: unknown[],
-  ) {
+  setQuestions(match: MatchEngine, type: GameQuestion['type'], bodies: unknown[]) {
     if (!Array.isArray(bodies)) throw new MatchError('invalid_questions');
     const questions = bodies.map((b) => {
       try {
-        return toGameQuestion(
-          this.questions.prepare({ ...(b as object), type }),
-        );
+        return toGameQuestion(this.questions.prepare({ ...(b as object), type }));
       } catch (e) {
-        throw new MatchError(
-          e instanceof Error ? e.message : 'invalid_question',
-        );
+        throw new MatchError(e instanceof Error ? e.message : 'invalid_question');
       }
     });
     match.setQuestions(type, questions);
@@ -249,14 +235,11 @@ export class MatchesService {
     this.expiryTimers.delete(match.code);
     const at = match.wakeAt(Date.now());
     if (at === null) return;
-    const timer = setTimeout(
-      () => {
-        this.expiryTimers.delete(match.code);
-        match.expire(Date.now());
-        onChanged();
-      },
-      Math.max(0, at - Date.now()) + 20,
-    );
+    const timer = setTimeout(() => {
+      this.expiryTimers.delete(match.code);
+      match.expire(Date.now());
+      onChanged();
+    }, Math.max(0, at - Date.now()) + 20);
     timer.unref?.();
     this.expiryTimers.set(match.code, timer);
   }
@@ -301,9 +284,6 @@ function toGameQuestion(q: {
 }
 
 /** Tells questions apart (يمين يسار questions share a prompt). */
-function questionKey(q: {
-  prompt: string;
-  refs: { surah: number; ayah: number }[];
-}) {
+function questionKey(q: { prompt: string; refs: { surah: number; ayah: number }[] }) {
   return `${q.prompt}|${q.refs.map((r) => `${r.surah}:${r.ayah}`).join(',')}`;
 }

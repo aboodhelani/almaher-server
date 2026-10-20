@@ -3,8 +3,7 @@ export function normalizeWord(word: string): string {
   let out = '';
   for (const ch of word) {
     const c = ch.codePointAt(0)!;
-    if (c === 0x0671 || c === 0x0623 || c === 0x0625 || c === 0x0622)
-      out += 'ا';
+    if (c === 0x0671 || c === 0x0623 || c === 0x0625 || c === 0x0622) out += 'ا';
     else if (c === 0x0649) out += 'ي';
     else if (c === 0x0629) out += 'ه';
     else if (c >= 0x0621 && c <= 0x064a) out += ch;

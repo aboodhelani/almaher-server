@@ -19,19 +19,9 @@ export interface MatchRules {
      * [cleanPoints] if the winner made no mistake, else [points]. Each player
      * may pass once per question.
      */
-    what_do_you_know: {
-      enabled: boolean;
-      points: number;
-      cleanPoints: number;
-      strikes: number;
-    };
+    what_do_you_know: { enabled: boolean; points: number; cleanPoints: number; strikes: number };
     ayah_number: { enabled: boolean; points: number; seconds: number };
-    auction: {
-      enabled: boolean;
-      points: number;
-      bidSeconds: number;
-      reciteSeconds: number;
-    };
+    auction: { enabled: boolean; points: number; bidSeconds: number; reciteSeconds: number };
     similar: {
       enabled: boolean;
       strikes: number;
@@ -42,12 +32,7 @@ export interface MatchRules {
       slowPoints: number;
     };
     /** Players say the ayah's last word; [strikes] tries each. */
-    sard: {
-      enabled: boolean;
-      points: number;
-      seconds: number;
-      strikes: number;
-    };
+    sard: { enabled: boolean; points: number; seconds: number; strikes: number };
     /** Each player's run of openings, [itemSeconds] each; more right wins. */
     right_left: { enabled: boolean; points: number; itemSeconds: number };
     buzzer: { enabled: boolean; points: number; seconds: number };
@@ -102,53 +87,35 @@ const RANGES: Record<string, [number, number]> = {
  * tier must come before its slow one, and the default match (every round on
  * at [questionsPerRound]) must fit the limits.
  */
-export function validateRules(
-  input: unknown,
-  base: MatchRules = DEFAULT_RULES,
-): MatchRules {
+export function validateRules(input: unknown, base: MatchRules = DEFAULT_RULES): MatchRules {
   const b = (input ?? {}) as Record<string, any>;
   const num = (key: string, value: unknown, current: number) => {
     if (value === undefined) return current;
     const n = Number(value);
     const [min, max] = RANGES[key];
-    if (!Number.isInteger(n) || n < min || n > max)
-      throw new RulesError(`invalid_${key}`);
+    if (!Number.isInteger(n) || n < min || n > max) throw new RulesError(`invalid_${key}`);
     return n;
   };
   const bool = (value: unknown, current: boolean) =>
     value === undefined ? current : value === true;
 
   const rules: MatchRules = JSON.parse(JSON.stringify(base));
-  rules.questionsPerRound = num(
-    'questionsPerRound',
-    b.questionsPerRound,
-    base.questionsPerRound,
-  );
+  rules.questionsPerRound = num('questionsPerRound', b.questionsPerRound, base.questionsPerRound);
   rules.maxPerRound = num('maxPerRound', b.maxPerRound, base.maxPerRound);
   rules.maxQuestions = num('maxQuestions', b.maxQuestions, base.maxQuestions);
   for (const type of QUESTION_TYPES) {
     const given = (b.rounds?.[type] ?? {}) as Record<string, unknown>;
-    const round = rules.rounds[type] as unknown as Record<
-      string,
-      number | boolean
-    >;
+    const round = rules.rounds[type] as unknown as Record<string, number | boolean>;
     for (const [key, current] of Object.entries(round)) {
       round[key] =
-        typeof current === 'boolean'
-          ? bool(given[key], current)
-          : num(key, given[key], current);
+        typeof current === 'boolean' ? bool(given[key], current) : num(key, given[key], current);
     }
   }
-  if (!QUESTION_TYPES.some((t) => rules.rounds[t].enabled))
-    throw new RulesError('no_rounds');
+  if (!QUESTION_TYPES.some((t) => rules.rounds[t].enabled)) throw new RulesError('no_rounds');
   const s = rules.rounds.similar;
   if (s.fastSeconds >= s.slowSeconds) throw new RulesError('similar_tiers');
-  if (rules.questionsPerRound > rules.maxPerRound)
-    throw new RulesError('per_round_over_limit');
-  if (
-    enabledRounds(rules).length * rules.questionsPerRound >
-    rules.maxQuestions
-  ) {
+  if (rules.questionsPerRound > rules.maxPerRound) throw new RulesError('per_round_over_limit');
+  if (enabledRounds(rules).length * rules.questionsPerRound > rules.maxQuestions) {
     throw new RulesError('match_over_limit');
   }
   return rules;

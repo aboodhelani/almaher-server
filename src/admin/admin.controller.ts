@@ -93,12 +93,7 @@ export class AdminController {
     try {
       const match = this.matches.get(code);
       if (match.mode !== 'remote') throw new NotFoundException('not_remote');
-      return await mediaToken(
-        match.code,
-        `viewer-${Date.now()}`,
-        'لوحة التحكم',
-        false,
-      );
+      return await mediaToken(match.code, `viewer-${Date.now()}`, 'لوحة التحكم', false);
     } catch (e) {
       if (e instanceof MatchError) throw new NotFoundException(e.code);
       throw e;
@@ -114,10 +109,7 @@ export class AdminController {
   @Post('matches')
   create(@Body() body: { mode?: string; code?: string }) {
     try {
-      const match = this.matches.create(
-        body?.mode === 'remote' ? 'remote' : 'same_room',
-        body?.code,
-      );
+      const match = this.matches.create(body?.mode === 'remote' ? 'remote' : 'same_room', body?.code);
       // The dashboard referees its matches: prepare first, then publish.
       match.published = false;
       return { ok: true, code: match.code };
@@ -149,10 +141,7 @@ export class AdminController {
 
   @Get('questions')
   list(@Query('type') type?: string, @Query('limit') limit?: string) {
-    return this.questions.list(
-      this.typeOrUndefined(type),
-      Math.min(Number(limit) || 100, 500),
-    );
+    return this.questions.list(this.typeOrUndefined(type), Math.min(Number(limit) || 100, 500));
   }
 
   @Get('questions/counts')
@@ -166,10 +155,7 @@ export class AdminController {
   generate(@Body() body: { type?: string; count?: number }) {
     const type = this.typeOrUndefined(body?.type);
     if (!type) throw new BadRequestException('invalid_type');
-    return this.questions.generate(
-      type,
-      Math.min(Math.max(Number(body?.count) || 5, 1), 20),
-    );
+    return this.questions.generate(type, Math.min(Math.max(Number(body?.count) || 5, 1), 20));
   }
 
   /** Saves a question: one added by hand, or a generated one being kept. */
@@ -178,22 +164,18 @@ export class AdminController {
     try {
       return await this.questions.add(body);
     } catch (e) {
-      if (e instanceof QuestionValidationError)
-        throw new BadRequestException(e.message);
+      if (e instanceof QuestionValidationError) throw new BadRequestException(e.message);
       throw e;
     }
   }
 
   @Delete('questions/:id')
   async remove(@Param('id') id: string) {
-    if (!(await this.questions.remove(id)))
-      throw new NotFoundException('question_not_found');
+    if (!(await this.questions.remove(id))) throw new NotFoundException('question_not_found');
     return { ok: true };
   }
 
   private typeOrUndefined(type?: string): QuestionType | undefined {
-    return QUESTION_TYPES.includes(type as QuestionType)
-      ? (type as QuestionType)
-      : undefined;
+    return QUESTION_TYPES.includes(type as QuestionType) ? (type as QuestionType) : undefined;
   }
 }

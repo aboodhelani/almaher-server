@@ -26,18 +26,14 @@ export function validateQuestion(
 ): QuestionData {
   const b = (body ?? {}) as Record<string, unknown>;
   const type = b.type as QuestionType;
-  if (!QUESTION_TYPES.includes(type))
-    throw new QuestionValidationError('invalid_type');
+  if (!QUESTION_TYPES.includes(type)) throw new QuestionValidationError('invalid_type');
 
   const refs = parseRefs(b.refs, quran);
   let prompt = str(b.prompt);
   let answer = str(b.answer);
   const meta = isObject(b.meta) ? { ...b.meta } : {};
 
-  const time =
-    b.timeLimitSeconds === undefined
-      ? DEFAULT_TIME_LIMIT_SECONDS
-      : Number(b.timeLimitSeconds);
+  const time = b.timeLimitSeconds === undefined ? DEFAULT_TIME_LIMIT_SECONDS : Number(b.timeLimitSeconds);
   if (!Number.isInteger(time) || time < 5 || time > 600) {
     throw new QuestionValidationError('invalid_time_limit');
   }
@@ -46,8 +42,7 @@ export function validateQuestion(
     case 'ayah_number': {
       // Given by page number: the page's first ayah, and its ayah count.
       const page = Number(b.page ?? meta.page);
-      const built =
-        Number.isInteger(page) && pageQuestion ? pageQuestion(page) : null;
+      const built = Number.isInteger(page) && pageQuestion ? pageQuestion(page) : null;
       if (!built) throw new QuestionValidationError('ayah_number_needs_page');
       prompt = built.prompt;
       answer = built.answer;
@@ -58,20 +53,16 @@ export function validateQuestion(
     case 'what_do_you_know':
     case 'auction':
       if (!prompt) throw new QuestionValidationError('prompt_required');
-      if (refs.length === 0)
-        throw new QuestionValidationError('answers_required');
+      if (refs.length === 0) throw new QuestionValidationError('answers_required');
       if (type === 'auction') meta.total = refs.length;
       if (!answer) answer = ayahCountLabel(refs.length);
       break;
     case 'similar':
-      if (!prompt || !answer)
-        throw new QuestionValidationError('prompt_and_answer_required');
-      if (refs.length < 2)
-        throw new QuestionValidationError('similar_needs_two_ayahs');
+      if (!prompt || !answer) throw new QuestionValidationError('prompt_and_answer_required');
+      if (refs.length < 2) throw new QuestionValidationError('similar_needs_two_ayahs');
       break;
     case 'buzzer':
-      if (!prompt || !answer)
-        throw new QuestionValidationError('prompt_and_answer_required');
+      if (!prompt || !answer) throw new QuestionValidationError('prompt_and_answer_required');
       break;
     case 'right_left': {
       // Given by its ayahs (an even number: half for each player).
@@ -79,8 +70,7 @@ export function validateQuestion(
         throw new QuestionValidationError('right_left_needs_even_ayahs');
       }
       const built = rightLeftQuestion(refs);
-      if (!built)
-        throw new QuestionValidationError('right_left_ayah_not_unique');
+      if (!built) throw new QuestionValidationError('right_left_ayah_not_unique');
       prompt = built.prompt;
       answer = built.answer;
       Object.assign(meta, built.meta);
@@ -88,8 +78,7 @@ export function validateQuestion(
     }
     case 'sard': {
       // Given by its ayah: the opening words and last word are derived.
-      if (refs.length !== 1 || !sardQuestion)
-        throw new QuestionValidationError('sard_needs_ayah');
+      if (refs.length !== 1 || !sardQuestion) throw new QuestionValidationError('sard_needs_ayah');
       const built = sardQuestion(refs[0]);
       if (!built) throw new QuestionValidationError('sard_ayah_not_unique');
       prompt = built.prompt;
@@ -112,13 +101,9 @@ export function validateQuestion(
 
 function parseRefs(value: unknown, quran: QuranService): AyahRef[] {
   if (value === undefined) return [];
-  if (!Array.isArray(value) || value.length > 300)
-    throw new QuestionValidationError('invalid_refs');
+  if (!Array.isArray(value) || value.length > 300) throw new QuestionValidationError('invalid_refs');
   return value.map((r) => {
-    const ref = {
-      surah: Number((r as AyahRef)?.surah),
-      ayah: Number((r as AyahRef)?.ayah),
-    };
+    const ref = { surah: Number((r as AyahRef)?.surah), ayah: Number((r as AyahRef)?.ayah) };
     ayahOf(ref, quran);
     return ref;
   });
@@ -126,17 +111,10 @@ function parseRefs(value: unknown, quran: QuranService): AyahRef[] {
 
 function ayahOf(ref: AyahRef, quran: QuranService) {
   const s = quran.surahs[ref.surah - 1];
-  if (
-    !s ||
-    !Number.isInteger(ref.ayah) ||
-    ref.ayah < 1 ||
-    ref.ayah > s.ayahCount
-  ) {
+  if (!s || !Number.isInteger(ref.ayah) || ref.ayah < 1 || ref.ayah > s.ayahCount) {
     throw new QuestionValidationError(`no_such_ayah ${ref.surah}:${ref.ayah}`);
   }
-  return quran.ayahs.find(
-    (a) => a.surah === ref.surah && a.numberInSurah === ref.ayah,
-  )!;
+  return quran.ayahs.find((a) => a.surah === ref.surah && a.numberInSurah === ref.ayah)!;
 }
 
 const str = (v: unknown) => (typeof v === 'string' ? v.trim() : '');

@@ -9,9 +9,6 @@ export class RulesController {
 
   @Get()
   get() {
-    return {
-      ...this.rules.current,
-      enabledRounds: enabledRounds(this.rules.current),
-    };
+    return { ...this.rules.current, enabledRounds: enabledRounds(this.rules.current) };
   }
 }

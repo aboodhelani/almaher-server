@@ -24,12 +24,6 @@ export async function mediaToken(
   const { url, apiKey, apiSecret } = mediaConfig();
   const room = roomFor(code);
   const at = new AccessToken(apiKey, apiSecret, { identity, name, ttl: '6h' });
-  at.addGrant({
-    room,
-    roomJoin: true,
-    canPublish,
-    canSubscribe: true,
-    canPublishData: false,
-  });
+  at.addGrant({ room, roomJoin: true, canPublish, canSubscribe: true, canPublishData: false });
   return { url, token: await at.toJwt(), room };
 }

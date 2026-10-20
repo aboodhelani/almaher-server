@@ -20,8 +20,7 @@ interface SocketData {
 }
 
 /** Who a socket is: a signed-in account, or the dashboard (admin key). */
-type Identity =
-  { kind: 'user'; userId: string; name: string } | { kind: 'admin' };
+type Identity = { kind: 'user'; userId: string; name: string } | { kind: 'admin' };
 
 type Ack = { ok: true; [k: string]: unknown } | { ok: false; error: string };
 
@@ -50,14 +49,8 @@ export class MatchesGateway implements OnGatewayDisconnect {
    * `auth.adminKey` (the dashboard). Playing needs one of them.
    */
   private async identify(socket: Socket): Promise<Identity> {
-    const auth = (socket.handshake.auth ?? {}) as {
-      token?: string;
-      adminKey?: string;
-    };
-    if (
-      auth.adminKey &&
-      auth.adminKey === (process.env.ADMIN_KEY ?? 'almaher-admin')
-    ) {
+    const auth = (socket.handshake.auth ?? {}) as { token?: string; adminKey?: string };
+    if (auth.adminKey && auth.adminKey === (process.env.ADMIN_KEY ?? 'almaher-admin')) {
       return { kind: 'admin' };
     }
     const user = await this.auth.fromToken(auth.token);
@@ -82,10 +75,7 @@ export class MatchesGateway implements OnGatewayDisconnect {
 
   /** Preparing: bank questions of a round to pick from. */
   @SubscribeMessage('setup:bank')
-  bank(
-    @ConnectedSocket() socket: Socket,
-    @MessageBody() body: { type: QuestionType },
-  ) {
+  bank(@ConnectedSocket() socket: Socket, @MessageBody() body: { type: QuestionType }) {
     return this.run(async () => {
       this.referee(socket);
       return { questions: await this.matches.bank(questionType(body?.type)) };
@@ -94,10 +84,7 @@ export class MatchesGateway implements OnGatewayDisconnect {
 
   /** Preparing: freshly generated questions of a round to pick from. */
   @SubscribeMessage('setup:suggest')
-  suggest(
-    @ConnectedSocket() socket: Socket,
-    @MessageBody() body: { type: QuestionType },
-  ) {
+  suggest(@ConnectedSocket() socket: Socket, @MessageBody() body: { type: QuestionType }) {
     return this.run(() => {
       this.referee(socket);
       return { questions: this.matches.suggest(questionType(body?.type), 6) };
@@ -109,13 +96,8 @@ export class MatchesGateway implements OnGatewayDisconnect {
    * e.g. `{ counts: { what_do_you_know: 20 } }` (rounds left out are skipped).
    */
   @SubscribeMessage('setup:rounds')
-  setRounds(
-    @ConnectedSocket() socket: Socket,
-    @MessageBody() body: { counts: unknown },
-  ) {
-    return this.asReferee(socket, (match) =>
-      match.setRoundCounts(body?.counts),
-    );
+  setRounds(@ConnectedSocket() socket: Socket, @MessageBody() body: { counts: unknown }) {
+    return this.asReferee(socket, (match) => match.setRoundCounts(body?.counts));
   }
 
   /** Preparing: the referee's questions for one round. */
@@ -125,11 +107,7 @@ export class MatchesGateway implements OnGatewayDisconnect {
     @MessageBody() body: { type: QuestionType; questions: unknown[] },
   ) {
     return this.asReferee(socket, (match) =>
-      this.matches.setQuestions(
-        match,
-        questionType(body?.type),
-        body?.questions,
-      ),
+      this.matches.setQuestions(match, questionType(body?.type), body?.questions),
     );
   }
 
@@ -146,8 +124,7 @@ export class MatchesGateway implements OnGatewayDisconnect {
   @SubscribeMessage('match:quick')
   async quick(
     @ConnectedSocket() socket: Socket,
-    @MessageBody()
-    body: { role: 'player' | 'referee'; name: string; mode?: MatchMode },
+    @MessageBody() body: { role: 'player' | 'referee'; name: string; mode?: MatchMode },
   ): Promise<Ack> {
     const role = body?.role === 'referee' ? 'referee' : 'player';
     const mode: MatchMode = body?.mode === 'remote' ? 'remote' : 'same_room';
@@ -158,11 +135,7 @@ export class MatchesGateway implements OnGatewayDisconnect {
       throw e;
     }
     const match = this.matches.findOrCreate(role, mode);
-    const ack = await this.join(socket, {
-      code: match.code,
-      role,
-      name: body.name,
-    });
+    const ack = await this.join(socket, { code: match.code, role, name: body.name });
     return ack.ok ? { ...ack, code: match.code } : ack;
   }
 
@@ -174,16 +147,11 @@ export class MatchesGateway implements OnGatewayDisconnect {
     let seat: Role | undefined;
     const ack = await this.run(async () => {
       const role = body?.role;
-      if (role !== 'player' && !ROLES.includes(role))
-        throw new MatchError('invalid_role');
+      if (role !== 'player' && !ROLES.includes(role)) throw new MatchError('invalid_role');
       const who = await this.identify(socket);
       // Accounts play under their own name; the dashboard names its referee.
       const name =
-        who.kind === 'user'
-          ? who.name
-          : String(body?.name ?? '')
-              .trim()
-              .slice(0, 40);
+        who.kind === 'user' ? who.name : String(body?.name ?? '').trim().slice(0, 40);
       if (!name) throw new MatchError('name_required');
       const userId = who.kind === 'user' ? who.userId : undefined;
       const match = this.matches.get(String(body.code));
@@ -228,10 +196,7 @@ export class MatchesGateway implements OnGatewayDisconnect {
   }
 
   @SubscribeMessage('round:answer')
-  answer(
-    @ConnectedSocket() socket: Socket,
-    @MessageBody() body: { value: number },
-  ) {
+  answer(@ConnectedSocket() socket: Socket, @MessageBody() body: { value: number }) {
     return this.run(async () => {
       const { match, role } = this.context(socket);
       if (role === 'referee') throw new MatchError('players_only');
@@ -250,8 +215,7 @@ export class MatchesGateway implements OnGatewayDisconnect {
     return this.run(async () => {
       const { match, role } = this.context(socket);
       if (role === 'referee') {
-        if (match.current?.type !== 'what_do_you_know')
-          throw new MatchError('players_only');
+        if (match.current?.type !== 'what_do_you_know') throw new MatchError('players_only');
         match.pass(match.q!.turn, Date.now());
       } else {
         match.pass(role, Date.now());
@@ -292,17 +256,14 @@ export class MatchesGateway implements OnGatewayDisconnect {
   @SubscribeMessage('round:judge')
   judge(
     @ConnectedSocket() socket: Socket,
-    @MessageBody()
-    body: { verdict: Verdict; ref?: string; player?: PlayerRole },
+    @MessageBody() body: { verdict: Verdict; ref?: string; player?: PlayerRole },
   ) {
     return this.asReferee(socket, (match) => {
       if (body?.verdict !== 'correct' && body?.verdict !== 'wrong') {
         throw new MatchError('invalid_verdict');
       }
       const player =
-        body.player === 'player1' || body.player === 'player2'
-          ? body.player
-          : undefined;
+        body.player === 'player1' || body.player === 'player2' ? body.player : undefined;
       match.judge(
         body.verdict,
         typeof body.ref === 'string' ? body.ref : undefined,
@@ -314,14 +275,10 @@ export class MatchesGateway implements OnGatewayDisconnect {
 
   /** Ends the question by hand: a point to a player, or none. */
   @SubscribeMessage('round:award')
-  award(
-    @ConnectedSocket() socket: Socket,
-    @MessageBody() body: { player: PlayerRole | null },
-  ) {
+  award(@ConnectedSocket() socket: Socket, @MessageBody() body: { player: PlayerRole | null }) {
     return this.asReferee(socket, (match) => {
       const p = body?.player;
-      if (p !== null && p !== 'player1' && p !== 'player2')
-        throw new MatchError('invalid_player');
+      if (p !== null && p !== 'player1' && p !== 'player2') throw new MatchError('invalid_player');
       match.award(p, Date.now());
     });
   }
@@ -329,9 +286,7 @@ export class MatchesGateway implements OnGatewayDisconnect {
   /** The referee swaps the current question for an alternative one. */
   @SubscribeMessage('round:replace')
   replace(@ConnectedSocket() socket: Socket) {
-    return this.asReferee(socket, (match) =>
-      this.matches.replaceQuestion(match),
-    );
+    return this.asReferee(socket, (match) => this.matches.replaceQuestion(match));
   }
 
   @SubscribeMessage('round:reveal')
@@ -370,28 +325,16 @@ export class MatchesGateway implements OnGatewayDisconnect {
       const match = this.matches.get(code);
       // A newer connection may already hold this seat (a quick reconnect).
       const sockets = await this.server.in(this.room(code)).fetchSockets();
-      if (
-        sockets.some(
-          (s) => s.id !== socket.id && (s.data as SocketData).role === role,
-        )
-      )
-        return;
+      if (sockets.some((s) => s.id !== socket.id && (s.data as SocketData).role === role)) return;
       match.setConnected(role, false);
-      this.matches.scheduleOfflineClose(
-        match,
-        role,
-        () => void this.broadcast(match),
-      );
+      this.matches.scheduleOfflineClose(match, role, () => void this.broadcast(match));
       await this.broadcast(match);
     } catch {
       // Match already gone.
     }
   }
 
-  private asReferee(
-    socket: Socket,
-    action: (match: MatchEngine) => void | Promise<void>,
-  ) {
+  private asReferee(socket: Socket, action: (match: MatchEngine) => void | Promise<void>) {
     return this.run(async () => {
       const { match, role } = this.context(socket);
       if (role !== 'referee') throw new MatchError('referee_only');
@@ -426,8 +369,7 @@ export class MatchesGateway implements OnGatewayDisconnect {
 
   /** Runs [action]; any fields it returns are added to the acknowledgement. */
   private async run(
-    action: () =>
-      Promise<void | Record<string, unknown>> | void | Record<string, unknown>,
+    action: () => Promise<void | Record<string, unknown>> | void | Record<string, unknown>,
   ): Promise<Ack> {
     try {
       const extra = await action();
@@ -448,7 +390,6 @@ function clamp(v: number, min: number, max: number) {
 }
 
 function questionType(type: unknown): QuestionType {
-  if (!QUESTION_TYPES.includes(type as QuestionType))
-    throw new MatchError('invalid_type');
+  if (!QUESTION_TYPES.includes(type as QuestionType)) throw new MatchError('invalid_type');
   return type as QuestionType;
 }
