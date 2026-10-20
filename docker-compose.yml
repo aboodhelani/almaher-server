@@ -1,0 +1,23 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: almaher
+      POSTGRES_PASSWORD: almaher
+      POSTGRES_DB: almaher
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+  # Live audio/video for remote matches. Dev mode: API key `devkey`,
+  # secret `secret`. Port 7880 is the signal server; WebRTC media uses
+  # 7881/tcp and 50000-50100/udp.
+  livekit:
+    image: livekit/livekit-server:v1.9.1
+    command: --dev --bind 0.0.0.0 --node-ip ${LIVEKIT_NODE_IP:-127.0.0.1} --rtc.port_range_start 50000 --rtc.port_range_end 50100
+    ports:
+      - "7880:7880"
+      - "7881:7881"
+      - "50000-50100:50000-50100/udp"
+volumes:
+  pgdata:
