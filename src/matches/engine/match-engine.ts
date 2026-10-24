@@ -57,6 +57,10 @@ export interface QuestionState {
   points: number;
   /** Times the referee swapped this question for an alternative. */
   replaced: number;
+  /** The player who gave this question up (the other one got its points). */
+  forfeited: PlayerRole | null;
+  /** آية بآية: next ayahs recited so far (the turn passes after each). */
+  step: number;
   /** يمين يسار: the runs. */
   rl: RightLeftState | null;
 }
@@ -95,6 +99,16 @@ interface RightLeftState {
   done: PlayerRole[];
 }
 
+/** آية بآية: one next ayah of the question (see its `meta.chain`). */
+interface ChainAyah {
+  surah: number;
+  ayah: number;
+  surahName: string;
+  text: string;
+  /** The words that tell this ayah apart: what the player must say. */
+  opening: string;
+}
+
 /**
  * One match between two players, run by a referee: by default 4 questions of
  * each round that is on; the referee may pick the rounds and their counts. The server holds the only copy; clients get role-filtered snapshots
@@ -118,6 +132,8 @@ export class MatchEngine {
   /** Questions the referee chose per round (the rest are picked at start). */
   setup: Partial<Record<GameQuestion['type'], GameQuestion[]>> = {};
   q: QuestionState | null = null;
+  /** The player who quit the match: the other one wins it, whatever the scores. */
+  forfeitedBy: PlayerRole | null = null;
   readonly createdAt = new Date();
 
   /** Questions in each round by default. */
@@ -309,6 +325,25 @@ export class MatchEngine {
     this.status = 'finished';
   }
 
+  /**
+   * [player] gives up the current question: it ends and the other player gets
+   * the round's usual points.
+   */
+  forfeitQuestion(player: PlayerRole) {
+    const q = this.requireQuestion();
+    if (q.phase !== 'answering') throw new MatchError('not_answering');
+    this.decide([other(player)]);
+    q.forfeited = player;
+  }
+
+  /** [player] quits the match: it ends now and the other player wins. */
+  forfeit(player: PlayerRole) {
+    if (this.status === 'finished') throw new MatchError('already_finished');
+    if (this.status !== 'playing') throw new MatchError('no_round');
+    this.forfeitedBy = player;
+    this.status = 'finished';
+  }
+
   get current(): GameQuestion | null {
     return this.status === 'playing' ? this.questions[this.index] : null;
   }
@@ -466,6 +501,9 @@ export class MatchEngine {
    * - السرد: the same, for the ayah's last word, with one points value.
    * - الجرس: ✓ the buzzer's point; ✗ shows everyone the question and hands
    *   the other player the chance; both wrong ends it with no point.
+   * - آية بآية: ✓ the player said the next ayah's opening, and the turn
+   *   passes with a fresh clock; ✗ the other player's point. Reaching the
+   *   end of the listed ayahs (the surah's end) gives nobody the point.
    */
   judge(verdict: Verdict, ref: string | undefined, now: number, player?: PlayerRole) {
     const q = this.requireQuestion();
@@ -502,6 +540,14 @@ export class MatchEngine {
         const type = this.current!.type as 'similar' | 'sard';
         if (q.strikes[player] >= this.rules.rounds[type].strikes) q.lockedOut.push(player);
         if (PLAYERS.every((p) => q.lockedOut.includes(p))) return this.decide([]);
+        return;
+      }
+      case 'ayah_by_ayah': {
+        if (verdict === 'wrong') return this.decide([other(q.turn)]);
+        q.step += 1;
+        if (q.step >= this.chain().length) return this.decide([]);
+        q.turn = other(q.turn);
+        q.deadline = now + q.limitSeconds * 1000;
         return;
       }
       case 'buzzer': {
@@ -541,6 +587,7 @@ export class MatchEngine {
    * - المزاد bidding: the highest bidder recites (no bids: no point);
    *   recital not delivered → the opponent's point.
    * - المتشابهات / السرد: no point. الجرس with nobody answering → no point.
+   * - آية بآية: the player whose turn it is was too slow → the other's point.
    */
   expire(now: number): boolean {
     const q = this.q;
@@ -552,6 +599,10 @@ export class MatchEngine {
       if (!q.rl || q.rl.stage !== 'running') return false;
       q.rl.answers[q.rl.player].push(null); // too slow: not counted
       this.advanceRun(now);
+      return true;
+    }
+    if (type === 'ayah_by_ayah') {
+      this.decide([other(q.turn)]);
       return true;
     }
     if (type === 'auction') {
@@ -576,7 +627,7 @@ export class MatchEngine {
     if (!q || this.status !== 'playing' || q.phase !== 'answering') return null;
     const type = this.current!.type;
     if (type === 'auction') return q.deadline;
-    if (type === 'sard') return q.deadline;
+    if (type === 'sard' || type === 'ayah_by_ayah') return q.deadline;
     if (type === 'right_left') return q.rl?.stage === 'running' ? q.deadline : null;
     if (type !== 'similar' && type !== 'buzzer') return null;
     if (type === 'buzzer' && this.activeBuzzer(q)) return null;
@@ -596,6 +647,7 @@ export class MatchEngine {
 
   get winner(): PlayerRole | 'draw' | null {
     if (this.status !== 'finished') return null;
+    if (this.forfeitedBy) return other(this.forfeitedBy);
     const { player1, player2 } = this.scores;
     if (player1 === player2) return 'draw';
     return player1 > player2 ? 'player1' : 'player2';
@@ -650,6 +702,7 @@ export class MatchEngine {
           ? { worth: this.pointsFor(now) }
           : {}),
         replaced: q.replaced > 0,
+        forfeited: q.forfeited,
         question: {
           // الجرس: players hear the question from the referee and must not
           // read ahead of it; everyone sees it after a wrong answer.
@@ -693,6 +746,7 @@ export class MatchEngine {
         lockedOut: q.lockedOut,
         saidCount: q.said.length,
         ...(q.rl ? { rightLeft: this.rightLeftSnapshot(isReferee || revealed) } : {}),
+        ...(question.type === 'ayah_by_ayah' ? { chain: this.chainSnapshot(showKey) } : {}),
         highBidder: q.highBidder,
         reciter: q.reciter,
         buzzes: q.buzzes,
@@ -722,6 +776,7 @@ export class MatchEngine {
       scores: this.scores,
       round,
       winner: this.winner,
+      forfeitedBy: this.forfeitedBy,
     };
   }
 
@@ -764,6 +819,8 @@ export class MatchEngine {
       awarded: [],
       points: 0,
       replaced: 0,
+      forfeited: null,
+      step: 0,
       rl:
         question.type === 'right_left'
           ? {
@@ -881,6 +938,28 @@ export class MatchEngine {
     };
   }
 
+  /** آية بآية: the next ayahs of the current question, in order. */
+  private chain(): ChainAyah[] {
+    return (this.current!.meta.chain as ChainAyah[] | undefined) ?? [];
+  }
+
+  /**
+   * آية بآية for one viewer: how far the players got and the openings said
+   * so far (aloud, so everyone sees them); the ayah due next for the referee
+   * ([full]).
+   */
+  private chainSnapshot(full: boolean) {
+    const q = this.q!;
+    const chain = this.chain();
+    const next = chain[q.step];
+    return {
+      step: q.step,
+      length: chain.length,
+      said: chain.slice(0, q.step).map((c) => c.opening),
+      ...(full && next ? { next } : {}),
+    };
+  }
+
   /** Each round's clock in seconds (0 = none), from the rules. */
   private roundSeconds(type: GameQuestion['type']): number {
     const r = this.rules.rounds;
@@ -895,6 +974,8 @@ export class MatchEngine {
         return r.similar.slowSeconds;
       case 'sard':
         return r.sard.seconds;
+      case 'ayah_by_ayah':
+        return r.ayah_by_ayah.seconds;
       case 'right_left':
         return 0; // each opening has its own clock once a run starts
       case 'buzzer':

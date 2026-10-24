@@ -33,6 +33,12 @@ export interface MatchRules {
     };
     /** Players say the ayah's last word; [strikes] tries each. */
     sard: { enabled: boolean; points: number; seconds: number; strikes: number };
+    /**
+     * Players take turns saying the opening of the next ayah, [seconds] each
+     * turn; a wrong opening or running out of time gives the other player
+     * [points].
+     */
+    ayah_by_ayah: { enabled: boolean; points: number; seconds: number };
     /** Each player's run of openings, [itemSeconds] each; more right wins. */
     right_left: { enabled: boolean; points: number; itemSeconds: number };
     buzzer: { enabled: boolean; points: number; seconds: number };
@@ -56,6 +62,7 @@ export const DEFAULT_RULES: MatchRules = {
       slowPoints: 2,
     },
     sard: { enabled: true, points: 1, seconds: 30, strikes: 2 },
+    ayah_by_ayah: { enabled: true, points: 1, seconds: 45 },
     right_left: { enabled: true, points: 1, itemSeconds: 3 },
     buzzer: { enabled: true, points: 1, seconds: 60 },
   },

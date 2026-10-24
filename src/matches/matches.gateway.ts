@@ -33,7 +33,8 @@ const ROLES: Role[] = ['player1', 'player2', 'referee'];
  * Client → server: match:create, match:quick, match:join, setup:rounds,
  * setup:bank, setup:suggest, setup:set, setup:publish, match:start,
  * round:answer, round:pass, round:side, round:start_run, round:buzz, round:judge, round:reveal, round:award,
- * round:replace, round:next, referee:adjust, referee:end, media:token.
+ * round:replace, round:next, round:forfeit, match:forfeit, referee:adjust, referee:end,
+ * media:token.
  */
 @WebSocketGateway({ cors: { origin: '*' } })
 export class MatchesGateway implements OnGatewayDisconnect {
@@ -318,6 +319,18 @@ export class MatchesGateway implements OnGatewayDisconnect {
     return this.asReferee(socket, (match) => match.end());
   }
 
+  /** A player gives up the current question; the other player gets its points. */
+  @SubscribeMessage('round:forfeit')
+  forfeitQuestion(@ConnectedSocket() socket: Socket) {
+    return this.asPlayer(socket, (match, player) => match.forfeitQuestion(player));
+  }
+
+  /** A player quits the match: it ends now and the other player wins. */
+  @SubscribeMessage('match:forfeit')
+  forfeit(@ConnectedSocket() socket: Socket) {
+    return this.asPlayer(socket, (match, player) => match.forfeit(player));
+  }
+
   async handleDisconnect(socket: Socket) {
     const { code, role } = socket.data as SocketData;
     if (!code || !role) return;
@@ -339,6 +352,15 @@ export class MatchesGateway implements OnGatewayDisconnect {
       const { match, role } = this.context(socket);
       if (role !== 'referee') throw new MatchError('referee_only');
       await action(match);
+      await this.broadcast(match);
+    });
+  }
+
+  private asPlayer(socket: Socket, action: (match: MatchEngine, player: PlayerRole) => void) {
+    return this.run(async () => {
+      const { match, role } = this.context(socket);
+      if (role === 'referee') throw new MatchError('players_only');
+      action(match, role);
       await this.broadcast(match);
     });
   }

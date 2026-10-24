@@ -61,6 +61,34 @@ describe('MatchEngine — flow', () => {
     expect(m.winner).toBe('player2');
     expect(() => m.end()).toThrow('already_finished');
   });
+
+  it('a player who quits a question gives the other player its points', () => {
+    const m = ready([q('buzzer'), q('buzzer')]);
+    m.forfeitQuestion('player1');
+    expect(m.scores).toEqual({ player1: 0, player2: 1 });
+    const round = (m.snapshotFor('player1', 0) as any).round;
+    expect(round.phase).toBe('revealed');
+    expect(round.forfeited).toBe('player1');
+    expect(round.awarded).toEqual(['player2']);
+    expect(() => m.forfeitQuestion('player2')).toThrow('not_answering');
+    m.next(0);
+    expect((m.snapshotFor('player1', 0) as any).round.forfeited).toBeNull();
+  });
+
+  it('a player who quits the match loses it, whatever the scores', () => {
+    const m = ready([q('buzzer'), q('buzzer')]);
+    m.award('player1', 0);
+    m.forfeit('player1');
+    expect(m.status).toBe('finished');
+    expect(m.winner).toBe('player2');
+    expect((m.snapshotFor('referee', 0) as any).forfeitedBy).toBe('player1');
+    expect(() => m.forfeit('player2')).toThrow('already_finished');
+  });
+
+  it('nobody can quit a match before it starts', () => {
+    const m = new MatchEngine('1', 'same_room');
+    expect(() => m.forfeit('player1')).toThrow('no_round');
+  });
 });
 
 describe('رقم الآيات — guess the page\'s ayah count', () => {
@@ -323,6 +351,49 @@ describe('السرد — say the ayah\'s last word', () => {
   });
 });
 
+describe('آية بآية — the next ayah, in turn', () => {
+  const chain = [2, 3, 4].map((n) => ({
+    surah: 1,
+    ayah: n,
+    surahName: 'الفاتحة',
+    text: `آية ${n}`,
+    opening: `بداية ${n}`,
+  }));
+  const question = () => q('ayah_by_ayah', { meta: { chain } });
+
+  it('turns alternate with a fresh 45 second clock; a wrong opening gives the other the point', () => {
+    const m = ready([question()]);
+    let r = m.snapshotFor('referee', 0).round as any;
+    expect(r.timeLimitSeconds).toBe(45);
+    expect(r.turn).toBe('player1');
+    expect(r.chain).toEqual({ step: 0, length: 3, said: [], next: chain[0] });
+    expect((m.snapshotFor('player1', 0).round as any).chain.next).toBeUndefined();
+    m.judge('correct', undefined, 30_000);
+    r = m.snapshotFor('player2', 30_000).round as any;
+    expect(r.turn).toBe('player2');
+    expect(r.secondsLeft).toBe(45);
+    expect(r.chain.said).toEqual(['بداية 2']);
+    m.judge('wrong', undefined, 40_000);
+    expect(m.scores).toEqual({ player1: 1, player2: 0 });
+  });
+
+  it("running out of time gives the other player the point", () => {
+    const m = ready([question()]);
+    m.judge('correct', undefined, 0); // player2's turn, until 45s
+    expect(m.wakeAt(0)).toBe(45_000);
+    expect(m.expire(44_999)).toBe(false);
+    expect(m.expire(45_000)).toBe(true);
+    expect(m.scores).toEqual({ player1: 1, player2: 0 });
+  });
+
+  it("reaching the surah's end gives nobody the point", () => {
+    const m = ready([question()]);
+    for (let i = 0; i < 3; i++) m.judge('correct', undefined, 0);
+    expect(m.q!.phase).toBe('revealed');
+    expect(m.scores).toEqual({ player1: 0, player2: 0 });
+  });
+});
+
 describe('يمين يسار — right or left page, a run each', () => {
   // 3 openings per run: player1's run gets the first 3, player2's the next 3.
   const sides = ['right', 'left', 'right', 'left', 'left', 'right'] as const;
@@ -477,7 +548,16 @@ describe('rules from the dashboard', () => {
     expect(() =>
       validateRules({
         rounds: Object.fromEntries(
-          ['what_do_you_know', 'ayah_number', 'auction', 'similar', 'sard', 'right_left', 'buzzer'].map((t) => [
+          [
+            'what_do_you_know',
+            'ayah_number',
+            'auction',
+            'similar',
+            'sard',
+            'ayah_by_ayah',
+            'right_left',
+            'buzzer',
+          ].map((t) => [
             t,
             { enabled: false },
           ]),
@@ -492,7 +572,7 @@ describe('the referee picks the rounds and their counts', () => {
   const lobby = () => new MatchEngine('1', 'same_room');
 
   it('plays 4 of each round by default', () => {
-    expect(lobby().plan.map((r) => r.count)).toEqual([4, 4, 4, 4, 4, 4, 4]);
+    expect(lobby().plan.map((r) => r.count)).toEqual([4, 4, 4, 4, 4, 4, 4, 4]);
   });
 
   it('one round only, 20 questions', () => {
@@ -526,9 +606,9 @@ describe('the referee picks the rounds and their counts', () => {
     expect(() => validateRules({ questionsPerRound: 5, maxPerRound: 4 })).toThrow(
       'per_round_over_limit',
     );
-    // 7 rounds × 4 = 28
-    expect(() => validateRules({ maxQuestions: 27 })).toThrow('match_over_limit');
-    expect(validateRules({ maxQuestions: 28 }).maxQuestions).toBe(28);
+    // 8 rounds × 4 = 32
+    expect(() => validateRules({ maxQuestions: 31 })).toThrow('match_over_limit');
+    expect(validateRules({ maxQuestions: 32 }).maxQuestions).toBe(32);
   });
 
   it('only rounds the rules leave on', () => {

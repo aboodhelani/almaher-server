@@ -29,6 +29,7 @@ export class QuestionsService {
         (page) => this.generator.pageQuestion(page),
         (ref) => this.generator.sardQuestion(ref),
         (refs) => this.generator.rightLeftQuestion(refs),
+        (ref) => this.generator.ayahByAyahQuestion(ref),
       ),
     );
   }
@@ -41,6 +42,7 @@ export class QuestionsService {
         (page) => this.generator.pageQuestion(page),
         (ref) => this.generator.sardQuestion(ref),
         (refs) => this.generator.rightLeftQuestion(refs),
+        (ref) => this.generator.ayahByAyahQuestion(ref),
       ),
     );
     return this.withAyahs(saved);

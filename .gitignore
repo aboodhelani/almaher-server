@@ -2,3 +2,6 @@ node_modules
 dist
 .env
 coverage
+
+# Production secrets (Railway), kept locally only
+.env.railway

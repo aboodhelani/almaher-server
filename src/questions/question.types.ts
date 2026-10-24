@@ -4,6 +4,7 @@ export const QUESTION_TYPES = [
   'auction',
   'similar',
   'sard',
+  'ayah_by_ayah',
   'right_left',
   'buzzer',
 ] as const;

@@ -157,7 +157,7 @@ describe('Dashboard API', () => {
     match.join('player1', 'أ');
     match.join('player2', 'ب');
     await app.get(MatchesService).start(match);
-    expect(match.questions).toHaveLength(12); // 6 rounds on × 2
+    expect(match.questions).toHaveLength(14); // 7 rounds on × 2
     expect(match.questions.some((q) => q.type === 'buzzer')).toBe(false);
 
     await request(server).post('/admin/rules/reset').set(key).expect(200);

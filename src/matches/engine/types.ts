@@ -16,6 +16,7 @@ export const ROUND_ORDER: QuestionType[] = [
   'auction',
   'similar',
   'sard',
+  'ayah_by_ayah',
   'right_left',
   'buzzer',
 ];

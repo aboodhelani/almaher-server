@@ -10,7 +10,7 @@ import { AuthService } from '../src/auth/auth.service';
 
 type State = any;
 
-describe('A full match over sockets: 7 rounds × 4 questions', () => {
+describe('A full match over sockets: 8 rounds × 4 questions', () => {
   let app: INestApplication;
   let url: string;
   const sockets: Socket[] = [];
@@ -39,7 +39,7 @@ describe('A full match over sockets: 7 rounds × 4 questions', () => {
     new Promise<any>((resolve) => s.emit(event, body ?? {}, resolve));
   const ok = async (p: Promise<any>) => expect(await p).toMatchObject({ ok: true });
 
-  it('plays all 28 questions, each round its own way, and saves the result', async () => {
+  it('plays all 32 questions, each round its own way, and saves the result', async () => {
     const authService = app.get(AuthService);
     const a = await authService.register('tamim@example.com', 'secret1', 'تميم');
     const b = await authService.register('obada@example.com', 'secret2', 'عبادة');
@@ -69,12 +69,12 @@ describe('A full match over sockets: 7 rounds × 4 questions', () => {
     await ok(emit(ref, 'match:start'));
     await settle();
 
-    expect(latest.round.total).toBe(28);
+    expect(latest.round.total).toBe(32);
     const seen: string[] = [];
     let expectedP1 = 0;
     let expectedP2 = 0;
 
-    for (let i = 0; i < 28; i++) {
+    for (let i = 0; i < 32; i++) {
       const r = latest.round;
       expect(r.index).toBe(i);
       expect(r.timeLimitSeconds).toBe(
@@ -82,6 +82,8 @@ describe('A full match over sockets: 7 rounds × 4 questions', () => {
           ? 45
           : r.type === 'sard'
             ? 30
+            : r.type === 'ayah_by_ayah'
+              ? 45
             : r.type === 'what_do_you_know' || r.type === 'right_left'
               ? 0
               : 60,
@@ -174,6 +176,22 @@ describe('A full match over sockets: 7 rounds × 4 questions', () => {
           }
           break;
         }
+        case 'ayah_by_ayah': {
+          // ✓ for each player in turn, then ✗: the other player's point.
+          const first = r.turn as 'player1' | 'player2';
+          expect(latest.round.chain.next.ayah).toBe(r.question.refs[0].ayah + 1);
+          expect(p2Latest.round.chain.next).toBeUndefined();
+          await ok(emit(ref, 'round:judge', { verdict: 'correct' }));
+          await settle();
+          expect(latest.round.turn).not.toBe(first);
+          await ok(emit(ref, 'round:judge', { verdict: 'correct' }));
+          await settle();
+          expect(latest.round.chain.said).toHaveLength(2);
+          await ok(emit(ref, 'round:judge', { verdict: 'wrong' }));
+          if (first === 'player1') expectedP2 += 1;
+          else expectedP1 += 1;
+          break;
+        }
         case 'buzzer': {
           await ok(emit(p2, 'round:buzz'));
           expect((await emit(p1, 'round:buzz')).error).toBe('someone_answering');
@@ -201,6 +219,7 @@ describe('A full match over sockets: 7 rounds × 4 questions', () => {
       ...Array(4).fill('auction'),
       ...Array(4).fill('similar'),
       ...Array(4).fill('sard'),
+      ...Array(4).fill('ayah_by_ayah'),
       ...Array(4).fill('right_left'),
       ...Array(4).fill('buzzer'),
     ]);

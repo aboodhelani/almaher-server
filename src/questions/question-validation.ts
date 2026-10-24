@@ -23,6 +23,8 @@ export function validateQuestion(
   sardQuestion?: (ref: AyahRef) => QuestionData | null,
   /** Builds the يمين يسار question of its ayahs. */
   rightLeftQuestion?: (refs: AyahRef[]) => QuestionData | null,
+  /** Builds the آية بآية question of its first ayah. */
+  ayahByAyahQuestion?: (ref: AyahRef) => QuestionData | null,
 ): QuestionData {
   const b = (body ?? {}) as Record<string, unknown>;
   const type = b.type as QuestionType;
@@ -71,6 +73,18 @@ export function validateQuestion(
       }
       const built = rightLeftQuestion(refs);
       if (!built) throw new QuestionValidationError('right_left_ayah_not_unique');
+      prompt = built.prompt;
+      answer = built.answer;
+      Object.assign(meta, built.meta);
+      break;
+    }
+    case 'ayah_by_ayah': {
+      // Given by its first ayah: the opening and the next ayahs are derived.
+      if (refs.length !== 1 || !ayahByAyahQuestion) {
+        throw new QuestionValidationError('ayah_by_ayah_needs_ayah');
+      }
+      const built = ayahByAyahQuestion(refs[0]);
+      if (!built) throw new QuestionValidationError('ayah_by_ayah_no_next');
       prompt = built.prompt;
       answer = built.answer;
       Object.assign(meta, built.meta);

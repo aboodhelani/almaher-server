@@ -96,6 +96,29 @@ describe('QuestionGeneratorService', () => {
     expect(gen.sardQuestion({ surah: 55, ayah: 13 })).toBeNull();
   });
 
+  it('آية بآية: a unique opening, then the next ayahs of the surah in order', () => {
+    const all = quran.ayahs.map((a) => splitWords(a.text).norm);
+    for (const q of gen.generate('ayah_by_ayah', 20, seeded(4))) {
+      const { surah, ayah: n } = q.refs[0];
+      const w = words(surah, n);
+      const k = q.meta.words as number;
+      const starts = (len: number) =>
+        all.filter((x) => x.slice(0, len).join(' ') === w.slice(0, len).join(' ')).length;
+      expect(starts(k)).toBe(1);
+      if (k > 1) expect(starts(k - 1)).toBeGreaterThan(1);
+      const chain = q.meta.chain as { surah: number; ayah: number; text: string; opening: string }[];
+      expect(chain.length).toBeGreaterThanOrEqual(10);
+      chain.forEach((c, i) => {
+        expect(c).toMatchObject({ surah, ayah: n + i + 1, text: ayah(surah, n + i + 1).text });
+        const opening = splitWords(c.opening).norm;
+        expect(opening).toEqual(words(surah, n + i + 1).slice(0, opening.length));
+      });
+      expect(q.answer).toBe(chain[0].opening);
+    }
+    // Nothing follows a surah's last ayah.
+    expect(gen.ayahByAyahQuestion({ surah: 1, ayah: 7 })).toBeNull();
+  });
+
   it('يمين يسار: 12 unique openings from different pages; odd pages are on the right', () => {
     const [q] = gen.generate('right_left', 1, seeded(5));
     const items = q.meta.items as { text: string; page: number; side: string; surah: number; ayah: number }[];
@@ -144,6 +167,28 @@ describe('validateQuestion', () => {
         gen.sardQuestion(r),
       ),
     ).toThrow('sard_ayah_not_unique');
+  });
+
+  it('builds آية بآية from its first ayah', () => {
+    const q = validateQuestion(
+      { type: 'ayah_by_ayah', refs: [{ surah: 2, ayah: 255 }] },
+      quran,
+      undefined,
+      undefined,
+      undefined,
+      (r) => gen.ayahByAyahQuestion(r),
+    );
+    expect((q.meta.chain as { ayah: number }[])[0].ayah).toBe(256);
+    expect(() =>
+      validateQuestion(
+        { type: 'ayah_by_ayah', refs: [{ surah: 1, ayah: 7 }] },
+        quran,
+        undefined,
+        undefined,
+        undefined,
+        (r) => gen.ayahByAyahQuestion(r),
+      ),
+    ).toThrow('ayah_by_ayah_no_next');
   });
 
   it('rejects bad input', () => {

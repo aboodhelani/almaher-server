@@ -13,6 +13,20 @@ type Random = () => number;
 /** يمين يسار: openings in each player's run. */
 export const RIGHT_LEFT_PER_PLAYER = 6;
 
+/** آية بآية: generated questions start with at least this many ayahs after them in the surah. */
+export const AYAH_BY_AYAH_MIN_CHAIN = 10;
+/** آية بآية: the most next ayahs a question lists. */
+export const AYAH_BY_AYAH_MAX_CHAIN = 40;
+
+/** آية بآية: one next ayah, and the opening that tells it apart. */
+export interface ChainAyah {
+  surah: number;
+  ayah: number;
+  surahName: string;
+  text: string;
+  opening: string;
+}
+
 interface Indexed {
   ayah: Ayah;
   shown: string[];
@@ -62,6 +76,7 @@ export class QuestionGeneratorService implements OnModuleInit {
       auction: () => this.auction(random),
       similar: () => this.similar(random),
       sard: () => this.sard(random),
+      ayah_by_ayah: () => this.ayahByAyah(random),
       right_left: () => this.rightLeft(random),
       buzzer: () => this.buzzer(random),
     }[type];
@@ -313,27 +328,75 @@ export class QuestionGeneratorService implements OnModuleInit {
    * opening (it repeats word for word) or no word is left after it.
    */
   sardQuestion(r: AyahRef): QuestionData | null {
-    const index = this.ayahs.findIndex(
-      (x) => x.ayah.surah === r.surah && x.ayah.numberInSurah === r.ayah,
-    );
+    const index = this.indexOf(r);
     const a = this.ayahs[index];
     if (!a) return null;
-    let sharing = this.ayahs.map((_, i) => i).filter((i) => i !== index);
-    for (let k = 1; k < a.norm.length; k++) {
-      sharing = sharing.filter((i) => this.ayahs[i].norm[k - 1] === a.norm[k - 1]);
-      if (sharing.length === 0) {
-        return this.question(
-          'sard',
-          a.shown.slice(0, k).join(' '),
-          a.shown[a.shown.length - 1],
-          [r],
-          {
-            words: k,
-            surahName: this.quran.surah(a.ayah.surah).nameArabic,
-            ayah: a.ayah.numberInSurah,
-          },
-        );
-      }
+    const k = this.uniqueOpening(index, a.norm.length - 1);
+    if (!k) return null;
+    return this.question('sard', a.shown.slice(0, k).join(' '), a.shown[a.shown.length - 1], [r], {
+      words: k,
+      surahName: this.quran.surah(a.ayah.surah).nameArabic,
+      ayah: a.ayah.numberInSurah,
+    });
+  }
+
+  /** آية بآية: a random ayah's question (see [ayahByAyahQuestion]). */
+  ayahByAyah(random: Random): QuestionData | null {
+    const a = pick(this.ayahs, random).ayah;
+    return this.ayahByAyahQuestion(ref(a), AYAH_BY_AYAH_MIN_CHAIN);
+  }
+
+  /**
+   * آية بآية: the ayah's shortest unique opening is shown (one word, or more
+   * while other ayahs start the same way); players take turns saying the
+   * opening of each next ayah of the surah. `meta.chain` lists those next
+   * ayahs (up to [AYAH_BY_AYAH_MAX_CHAIN]) for the referee. Null when the
+   * ayah has no unique opening or fewer than [minChain] ayahs follow it.
+   */
+  ayahByAyahQuestion(r: AyahRef, minChain = 1): QuestionData | null {
+    const index = this.indexOf(r);
+    const a = this.ayahs[index];
+    if (!a) return null;
+    const left = this.quran.surah(r.surah).ayahCount - r.ayah;
+    if (left < Math.max(1, minChain)) return null;
+    const k = this.uniqueOpening(index, a.norm.length);
+    if (!k) return null;
+    const surahName = this.quran.surah(r.surah).nameArabic;
+    const chain: ChainAyah[] = [];
+    for (let i = index + 1; i <= index + Math.min(left, AYAH_BY_AYAH_MAX_CHAIN); i++) {
+      const next = this.ayahs[i];
+      // An ayah repeated word for word has no shorter opening: all of it.
+      const words = this.uniqueOpening(i, next.norm.length) ?? next.shown.length;
+      chain.push({
+        surah: next.ayah.surah,
+        ayah: next.ayah.numberInSurah,
+        surahName,
+        text: next.ayah.text,
+        opening: next.shown.slice(0, words).join(' '),
+      });
+    }
+    return this.question('ayah_by_ayah', a.shown.slice(0, k).join(' '), chain[0].opening, [r], {
+      words: k,
+      surahName,
+      ayah: r.ayah,
+      chain,
+    });
+  }
+
+  private indexOf(r: AyahRef): number {
+    return this.ayahs.findIndex((x) => x.ayah.surah === r.surah && x.ayah.numberInSurah === r.ayah);
+  }
+
+  /**
+   * The fewest opening words (at most [maxWords]) of the ayah at [index]
+   * that no other ayah starts with, or null.
+   */
+  private uniqueOpening(index: number, maxWords: number): number | null {
+    const a = this.ayahs[index];
+    let sharing = (this.openings.get(1)!.get(a.norm[0]) ?? []).filter((i) => i !== index);
+    for (let k = 1; k <= maxWords; k++) {
+      if (k > 1) sharing = sharing.filter((i) => this.ayahs[i].norm[k - 1] === a.norm[k - 1]);
+      if (sharing.length === 0) return k;
     }
     return null;
   }
